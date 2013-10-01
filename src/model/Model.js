@@ -21,6 +21,9 @@ B.Model = B.Class.extend({
 		return this;
 		
 	},
+	addTerrain: function (terrainObj) {
+
+	},
 	addThreeGeometry: function (object) {
 		this._scene.add(object);
 		return this;

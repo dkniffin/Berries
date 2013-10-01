@@ -21,9 +21,15 @@ var deps = {
 		src: ['objects/Terrain.js'],
 		desc: 'The base class for rendering terrain data on the model.'
 	},
+
 	Light: {
 		src: ['objects/Light.js'],
 		desc: 'A light source to render in the scene.' 
+	},
+
+	OSMDataContainer: {
+		src: ['osmDataContainer/OSMDataContainer.js'],
+		desc: 'A class to read in OSM data in JSON format, and output various types of data (eg: roads, buildings, etc).' 
 	}
 };
 
