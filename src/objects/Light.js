@@ -25,7 +25,7 @@ B.Light = B.Class.extend({
 		var directionalLight = new THREE.DirectionalLight(0xffffff);
 		directionalLight.position.set(x, y, z).normalize();
 
-		model.addThreeGeometry(directionalLight);
+		model.addObject(directionalLight);
 		return this;
 	},
 	_latlon2meters: function (lat, lon) {

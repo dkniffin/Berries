@@ -1,8 +1,8 @@
 /*
- * L.CRS is a base object for all defined CRS (Coordinate Reference Systems) in Leaflet.
+ * B.CRS is a base object for all defined CRS (Coordinate Reference Systems) in Leaflet.
  */
 
-L.CRS = {
+B.CRS = {
 	latLngToPoint: function (latlng, zoom) { // (LatLng, Number) -> Point
 		var projectedPoint = this.projection.project(latlng),
 		    scale = this.scale(zoom);

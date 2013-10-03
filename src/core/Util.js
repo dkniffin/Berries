@@ -121,6 +121,20 @@ B.Util = {
 		return cache[str](data);
 	},
 
+	arrayMerge: function (origData, addData) {
+		// Algorithm taken from jQuery's merge function
+		var len = +addData.length,
+			j = 0,
+			i = origData.length;
+
+		for (; j < len; j++) {
+			origData[i++] = addData[j];
+		}
+		origData.length = i;
+
+		return origData;
+	},
+
 	isArray: function (obj) {
 		return (Object.prototype.toString.call(obj) === '[object Array]');
 	},

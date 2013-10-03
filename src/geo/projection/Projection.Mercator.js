@@ -3,14 +3,14 @@
  * Less popular than spherical mercator; used by projections like EPSG:3395.
  */
 
-L.Projection.Mercator = {
+B.Projection.Mercator = {
 	MAX_LATITUDE: 85.0840591556,
 
 	R_MINOR: 6356752.314245179,
 	R_MAJOR: 6378137,
 
 	project: function (latlng) { // (LatLng) -> Point
-		var d = L.LatLng.DEG_TO_RAD,
+		var d = B.LatLng.DEG_TO_RAD,
 		    max = this.MAX_LATITUDE,
 		    lat = Math.max(Math.min(max, latlng.lat), -max),
 		    r = this.R_MAJOR,
@@ -26,11 +26,11 @@ L.Projection.Mercator = {
 		var ts = Math.tan(0.5 * ((Math.PI * 0.5) - y)) / con;
 		y = -r * Math.log(ts);
 
-		return new L.Point(x, y);
+		return new B.Point(x, y);
 	},
 
 	unproject: function (point) { // (Point, Boolean) -> LatLng
-		var d = L.LatLng.RAD_TO_DEG,
+		var d = B.LatLng.RAD_TO_DEG,
 		    r = this.R_MAJOR,
 		    r2 = this.R_MINOR,
 		    lng = point.x * d / r,
@@ -51,6 +51,6 @@ L.Projection.Mercator = {
 			phi += dphi;
 		}
 
-		return new L.LatLng(phi * d, lng);
+		return new B.LatLng(phi * d, lng);
 	}
 };

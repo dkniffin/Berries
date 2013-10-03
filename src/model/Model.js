@@ -6,8 +6,6 @@ B.Model = B.Class.extend({
 	_clock: new THREE.Clock(),
 	
 	options: {
-		render: {
-		},
 	},
 
 	initialize: function (id, options) {
@@ -21,10 +19,13 @@ B.Model = B.Class.extend({
 		return this;
 		
 	},
-	addTerrain: function (terrainObj) {
+	addTerrain: function (terrain) {
+		this._terrain = terrain;
 
+		
+		this._scene.add(terrain._mesh);
 	},
-	addThreeGeometry: function (object) {
+	addObject: function (object) {
 		this._scene.add(object);
 		return this;
 	},

@@ -327,6 +327,160 @@ B.Class.addInitHook = function (fn) { // (Function) || (String, args...)
 };
 
 /*
+ * B.Point represents a point with x and y coordinates.
+ */
+
+B.Point = function (/*Number*/ x, /*Number*/ y, /*Boolean*/ round) {
+	this.x = (round ? Math.round(x) : x);
+	this.y = (round ? Math.round(y) : y);
+};
+
+B.Point.prototype = {
+
+	clone: function () {
+		return new B.Point(this.x, this.y);
+	},
+
+	// non-destructive, returns a new point
+	add: function (point) {
+		return this.clone()._add(B.point(point));
+	},
+
+	// destructive, used directly for performance in situations where it's safe to modify existing point
+	_add: function (point) {
+		this.x += point.x;
+		this.y += point.y;
+		return this;
+	},
+
+	subtract: function (point) {
+		return this.clone()._subtract(B.point(point));
+	},
+
+	_subtract: function (point) {
+		this.x -= point.x;
+		this.y -= point.y;
+		return this;
+	},
+
+	divideBy: function (num) {
+		return this.clone()._divideBy(num);
+	},
+
+	_divideBy: function (num) {
+		this.x /= num;
+		this.y /= num;
+		return this;
+	},
+
+	multiplyBy: function (num) {
+		return this.clone()._multiplyBy(num);
+	},
+
+	_multiplyBy: function (num) {
+		this.x *= num;
+		this.y *= num;
+		return this;
+	},
+
+	round: function () {
+		return this.clone()._round();
+	},
+
+	_round: function () {
+		this.x = Math.round(this.x);
+		this.y = Math.round(this.y);
+		return this;
+	},
+
+	floor: function () {
+		return this.clone()._floor();
+	},
+
+	_floor: function () {
+		this.x = Math.floor(this.x);
+		this.y = Math.floor(this.y);
+		return this;
+	},
+
+	distanceTo: function (point) {
+		point = B.point(point);
+
+		var x = point.x - this.x,
+		    y = point.y - this.y;
+
+		return Math.sqrt(x * x + y * y);
+	},
+
+	equals: function (point) {
+		point = B.point(point);
+
+		return point.x === this.x &&
+		       point.y === this.y;
+	},
+
+	contains: function (point) {
+		point = B.point(point);
+
+		return Math.abs(point.x) <= Math.abs(this.x) &&
+		       Math.abs(point.y) <= Math.abs(this.y);
+	},
+
+	toString: function () {
+		return 'Point(' +
+		        B.Util.formatNum(this.x) + ', ' +
+		        B.Util.formatNum(this.y) + ')';
+	}
+};
+
+B.point = function (x, y, round) {
+	if (x instanceof B.Point) {
+		return x;
+	}
+	if (B.Util.isArray(x)) {
+		return new B.Point(x[0], x[1]);
+	}
+	if (x === undefined || x === null) {
+		return x;
+	}
+	return new B.Point(x, y, round);
+};
+
+
+/*
+ * B.Transformation is an utility class to perform simple point transformations through a 2d-matrix.
+ */
+
+B.Transformation = function (a, b, c, d) {
+	this._a = a;
+	this._b = b;
+	this._c = c;
+	this._d = d;
+};
+
+B.Transformation.prototype = {
+	transform: function (point, scale) { // (Point, Number) -> Point
+		return this._transform(point.clone(), scale);
+	},
+
+	// destructive transform (faster)
+	_transform: function (point, scale) {
+		scale = scale || 1;
+		point.x = scale * (this._a * point.x + this._b);
+		point.y = scale * (this._c * point.y + this._d);
+		return point;
+	},
+
+	untransform: function (point, scale) {
+		scale = scale || 1;
+		return new B.Point(
+		        (point.x / scale - this._b) / this._a,
+		        (point.y / scale - this._d) / this._c);
+	}
+};
+
+
+/*
  * B.DomUtil is a copy of L.DomUtil.
  * It contains various utility functions for working with DOM.
  */
@@ -846,6 +1000,135 @@ B.latLngBounds = function (a, b) { // (LatLngBounds) or (LatLng, LatLng)
 
 
 /*
+ * B.Projection contains various geographical projections used by CRS classes.
+ */
+
+B.Projection = {};
+
+
+/*
+ * Spherical Mercator is the most popular map projection, used by EPSG:3857 CRS used by default.
+ */
+
+B.Projection.SphericalMercator = {
+	MAX_LATITUDE: 85.0511287798,
+
+	project: function (latlng) { // (LatLng) -> Point
+		var d = B.LatLng.DEG_TO_RAD,
+		    max = this.MAX_LATITUDE,
+		    lat = Math.max(Math.min(max, latlng.lat), -max),
+		    x = latlng.lng * d,
+		    y = lat * d;
+
+		y = Math.log(Math.tan((Math.PI / 4) + (y / 2)));
+
+		return new B.Point(x, y);
+	},
+
+	unproject: function (point) { // (Point, Boolean) -> LatLng
+		var d = B.LatLng.RAD_TO_DEG,
+		    lng = point.x * d,
+		    lat = (2 * Math.atan(Math.exp(point.y)) - (Math.PI / 2)) * d;
+
+		return new B.LatLng(lat, lng);
+	}
+};
+
+
+/*
+ * Simple equirectangular (Plate Carree) projection, used by CRS like EPSG:4326 and Simple.
+ */
+
+B.Projection.LonLat = {
+	project: function (latlng) {
+		return new B.Point(latlng.lng, latlng.lat);
+	},
+
+	unproject: function (point) {
+		return new B.LatLng(point.y, point.x);
+	}
+};
+
+
+/*
+ * B.CRS is a base object for all defined CRS (Coordinate Reference Systems) in Leaflet.
+ */
+
+B.CRS = {
+	latLngToPoint: function (latlng, zoom) { // (LatLng, Number) -> Point
+		var projectedPoint = this.projection.project(latlng),
+		    scale = this.scale(zoom);
+
+		return this.transformation._transform(projectedPoint, scale);
+	},
+
+	pointToLatLng: function (point, zoom) { // (Point, Number[, Boolean]) -> LatLng
+		var scale = this.scale(zoom),
+		    untransformedPoint = this.transformation.untransform(point, scale);
+
+		return this.projection.unproject(untransformedPoint);
+	},
+
+	project: function (latlng) {
+		return this.projection.project(latlng);
+	},
+
+	scale: function (zoom) {
+		return 256 * Math.pow(2, zoom);
+	}
+};
+
+
+/*
+ * A simple CRS that can be used for flat non-Earth maps like panoramas or game maps.
+ */
+
+B.CRS.Simple = B.extend({}, B.CRS, {
+	projection: B.Projection.LonLat,
+	transformation: new B.Transformation(1, 0, -1, 0),
+
+	scale: function (zoom) {
+		return Math.pow(2, zoom);
+	}
+});
+
+
+/*
+ * B.CRS.EPSG3857 (Spherical Mercator) is the most common CRS for web mapping
+ * and is used by Leaflet by default.
+ */
+
+B.CRS.EPSG3857 = B.extend({}, B.CRS, {
+	code: 'EPSG:3857',
+
+	projection: B.Projection.SphericalMercator,
+	transformation: new B.Transformation(0.5 / Math.PI, 0.5, -0.5 / Math.PI, 0.5),
+
+	project: function (latlng) { // (LatLng) -> Point
+		var projectedPoint = this.projection.project(latlng),
+		    earthRadius = 6378137;
+		return projectedPoint.multiplyBy(earthRadius);
+	}
+});
+
+B.CRS.EPSG900913 = B.extend({}, B.CRS.EPSG3857, {
+	code: 'EPSG:900913'
+});
+
+
+/*
+ * B.CRS.EPSG4326 is a CRS popular among advanced GIS specialists.
+ */
+
+B.CRS.EPSG4326 = B.extend({}, B.CRS, {
+	code: 'EPSG:4326',
+
+	projection: B.Projection.LonLat,
+	transformation: new B.Transformation(1 / 360, 0.5, -1 / 360, 0.5)
+});
+
+
+/*
  * B.model is the equivalent of L.map. It initializes a model to add data to.
  */
 
@@ -853,8 +1136,6 @@ B.Model = B.Class.extend({
 	_clock: new THREE.Clock(),
 	
 	options: {
-		render: {
-		},
 	},
 
 	initialize: function (id, options) {
@@ -868,7 +1149,13 @@ B.Model = B.Class.extend({
 		return this;
 		
 	},
-	addThreeGeometry: function (object) {
+	addTerrain: function (terrain) {
+		this._terrain = terrain;
+
+		
+		this._scene.add(terrain._mesh);
+	},
+	addObject: function (object) {
 		this._scene.add(object);
 		return this;
 	},
@@ -929,16 +1216,15 @@ B.model = function (id, options) {
  */
 
 B.Terrain = B.Class.extend({
-	_worldWidth: 100, // Must be even!
-	_worldDepth: 100, // Must be even!
-	_worldHalfWidth: 100, // Must be even!
-	_worldHalfDepth: 100, // Must be even!
-	_originXInMeters: 0,
-	_originYInMeters: 0,
+	_numWidthGridPts: 100, // Must be even!
+	_numDepthGridPts: 100, // Must be even!
+	_numWGPHalf: function () { return this._numWidthGridPts / 2; },
+	_numDGPHalf: function () { return this._numDepthGridPts / 2; },
+	_dataWidthInMeters: 100,
+	_dataDepthInMeters: 100,
+	_origin: new B.LatLng(0, 0), // The lat/lng coords of the origin of the terrain grid
 
 	options: {
-		planeWidth: 7500,
-		planeHeight: 7500,
 		gridSpace: 100, // In meters
 		dataType: 'SRTM_vector'
 
@@ -946,23 +1232,28 @@ B.Terrain = B.Class.extend({
 	initialize: function (inData, options) {
 		options = B.setOptions(this, options);
 
+
 		// Read in the data
 		this._data = this.addData(inData);
 
 		// Set up the geometry
-		this._geometry = new THREE.PlaneGeometry(options.planeWidth, options.planeHeight,
-			this._worldWidth - 1, this._worldDepth - 1);
+		//this._geometry = new THREE.PlaneGeometry(options.planeWidth, options.planeHeight,
+		//this._geometry = new THREE.PlaneGeometry(this._dataWidthInMeters, this._dataDepthInMeters,
+		this._geometry = new THREE.PlaneGeometry(this._dataDepthInMeters, this._dataWidthInMeters,
+			this._numWidthGridPts - 1, this._numDepthGridPts - 1);
+
 		this._geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+		
 
 		this._updateGeometry();
+
+		this._mesh.translateX(this._dataWidthInMeters / 2);
+		this._mesh.translateZ(this._dataDepthInMeters / 2);
 
 		
 	},
 	addTo: function (model) {
-		var mesh = new THREE.Mesh(this._geometry, new THREE.MeshBasicMaterial({
-			map: THREE.ImageUtils.loadTexture('lib/textures/seamless-dirt.jpg')
-		}));
-		model.addThreeGeometry(mesh);
+		model.addTerrain(this);
 		return this;
 	},
 	addData: function (inData) {
@@ -975,46 +1266,100 @@ B.Terrain = B.Class.extend({
 			throw new Error('Unsupported terrain data type');
 		}
 	},
+	heightAt: function (lat, lon, model) {
+		// Return the elevation of the terrain at the given lat/lon
+		var ele;
+		var xym = this._latlon2meters(lat, lon);
+		console.log(xym);
+		//var ray = new THREE.Ray(new THREE.Vector3(xym.x, 10000, xym.y), new THREE.Vector3(0, 1, 0));
+
+
+		var material = new THREE.LineBasicMaterial({
+	        color: 0xff0000
+	    });
+	    var geometry = new THREE.Geometry();
+	    //geometry.vertices.push(new THREE.Vector3(-3750, 2300, -3750));
+	    //geometry.vertices.push(new THREE.Vector3(-3750, 0, -3750));
+	    geometry.vertices.push(new THREE.Vector3(xym.x, 2300, xym.y));
+	    geometry.vertices.push(new THREE.Vector3(xym.x, 0, xym.y));
+
+	    //geometry.applyMatrix(new THREE.Matrix4().makeRotationX(Math.PI));
+
+
+		var line = new THREE.Line(geometry, material);
+
+		model.addObject(line);
+
+
+		var rc = new THREE.Raycaster(
+			new THREE.Vector3(xym.x, 10000, xym.y),
+			new THREE.Vector3(0, -1, 0));
+		console.log(rc.intersectObject(this._mesh));
+		return ele;
+	},
+	_latlon2meters: function (lat, lon) {
+		// This function takes a lat/lon pair, and converts it to meters,
+		// relative to the origin of the terrain, and returns x,y, and 
+		// straightLine distances
+
+		// normalize the input into a B.LatLng object
+		var latlng = B.latLng(lat, lon);
+
+		return {
+			x: latlng.distanceTo([latlng.lat, this._origin.lng]),
+			y: latlng.distanceTo([this._origin.lat, latlng.lng]),
+			straightLine: latlng.distanceTo(this._origin)
+		};
+	},
 	// This function takes "raw" SRTM data (in JSON format) and sets up the
 	// variables based on that.
 	_addSRTMData: function (inData) {
-		var data = inData; // Save the data in a global variable
+		var data = {
+			nodes: []
+		};
+
+
+		//var data = inData; // Save the data in a global variable
 
 		// Update the world dimensions based on the data
-		this._updateWorldDimensions(data.minLat, data.maxLat, data.minLon, data.maxLon);
+		this._updateWorldDimensions(inData.minLat, inData.maxLat, inData.minLon, inData.maxLon);
 
-		// Convert the lat and lon values to x and y values in meters, and store that in the data variable
-		for (var i in data.nodes) {
-			var xym = this._latlon2meters(data.nodes[i].lat, data.nodes[i].lon);
-			data.nodes[i].xm = xym.x;
-			data.nodes[i].ym = xym.y;
+
+		// Create a LatLng object for each node, populate the elevation,
+		// and create a xm and ym (meters relative to origin).
+		for (var i in inData.nodes) {
+			var latlng = new B.LatLng(inData.nodes[i].lat, inData.nodes[i].lon);
+			var xym = this._latlon2meters(latlng);
+			data.nodes.push({
+				latlng: latlng,
+				ele: inData.nodes[i].ele,
+				//xm: latlng.distanceTo([latlng.lat, this._origin.lng]),
+				//ym: latlng.distanceTo([this._origin.lat, latlng.lng])
+				xm: xym.x,
+				ym: xym.y
+			});
 		}
 
 		return data;
 	},
 	// Update the world dimensions
 	_updateWorldDimensions: function (minLat, maxLat, minLon, maxLon) {
-		var minInMeters = this._latlon2meters(minLat, minLon);
-		var maxInMeters = this._latlon2meters(maxLat, maxLon);
+		var origin = this._origin = new B.LatLng(minLat, minLon);
 
 		// The logic used below is: find the distance between max and min in
 		// degrees, convert to meters, and divide by the spacing between grid
 		// points, then round to the nearest 2, to get the number of grid points.
-		this._worldWidth = this._customRound(
-			(Math.abs(maxInMeters.x - minInMeters.x)) / this.options.gridSpace,
-			'nearest',
-			2
-			);
-		this._worldDepth = this._customRound(
-			(Math.abs(maxInMeters.y - minInMeters.y)) / this.options.gridSpace,
-			'nearest',
-			2
-			);
-		this._worldHalfWidth = this._worldWidth / 2;
-		this._worldHalfDepth = this._worldDepth / 2;
+		var widthInMeters = this._dataWidthInMeters = origin.distanceTo([origin.lat, maxLon]);
+		var depthInMeters = this._dataDepthInMeters = origin.distanceTo([maxLat, origin.lng]);
 
-		this._originXInMeters = minInMeters.x;
-		this._originYInMeters = minInMeters.y;
+		this._numWidthGridPts = this._customRound(
+			widthInMeters / this.options.gridSpace,
+			'nearest', 2);
+
+		this._numDepthGridPts = this._customRound(
+			depthInMeters / this.options.gridSpace,
+			'nearest', 2);
+
 	},
 	_customRound: function (value, mode, multiple) {
 		// TODO: Move this out of Terrain.js
@@ -1037,16 +1382,6 @@ B.Terrain = B.Class.extend({
 			return (multiple * Math.ceil(value / multiple));
 		}
 	},
-	_latlon2meters: function (lat, lon) {
-		// Converts a lat,lon set to a x,y (in meters) set
-		// TODO: Move this out of Terrain.js
-		// TODO: Fix this. Lon doesn't convert that easily. This 
-		// value is specific to locations at about 40 N or S
-		return {
-			x: lat * 111000,
-			y: lon * 85000
-		};
-	},
 	_updateGeometry: function () {
 		var inData = this._data.nodes;
 		var geo = this._geometry;
@@ -1068,9 +1403,9 @@ B.Terrain = B.Class.extend({
 
 
 		// Set up our boxes for organizing the points
-		var gridApproximationBoxes = new Array(this._worldWidth + 5);
+		var gridApproximationBoxes = new Array(this._numWidthGridPts + 5);
 		for (var a = 0; a < gridApproximationBoxes.length; a++) {
-			gridApproximationBoxes[a] = new Array(this._worldDepth + 5);
+			gridApproximationBoxes[a] = new Array(this._numDepthGridPts + 5);
 			for (var b = 0; b < gridApproximationBoxes[a].length; b++) {
 				gridApproximationBoxes[a][b] = [];
 			}
@@ -1082,16 +1417,11 @@ B.Terrain = B.Class.extend({
 			var ptX = inData[ptIndex].xm;
 			var ptY = inData[ptIndex].ym;
 
+
+
 			// Find the containing box
-			var gabX = this._customRound(
-				ptX - this._originXInMeters,
-				'down',
-				this.options.gridSpace
-				) / this.options.gridSpace;
-			var gabY = this._customRound(
-				ptY - this._originYInMeters,
-				'down', this.options.gridSpace
-				) / this.options.gridSpace;
+			var gabX = this._customRound(ptX, 'down', this.options.gridSpace) / this.options.gridSpace;
+			var gabY = this._customRound(ptY, 'down', this.options.gridSpace) / this.options.gridSpace;
 
 			gridApproximationBoxes[gabX][gabY].push(ptIndex);
 
@@ -1100,10 +1430,10 @@ B.Terrain = B.Class.extend({
 		var Vindex = 0;
 		var minXindex, minYindex, maxXindex, maxYindex;
 		// Find the closest point to each vertex
-		for (var i = 0; i < this._worldDepth; i++) {
-			var iAbs = this._originYInMeters + i * this.options.gridSpace;
-			for (var j = 0; j < this._worldWidth; j++) {
-				var jAbs = this._originXInMeters + j * this.options.gridSpace;
+		for (var i = 0; i < this._numDepthGridPts; i++) {
+			var iAbs = i * this.options.gridSpace;
+			for (var j = 0; j < this._numWidthGridPts; j++) {
+				var jAbs = j * this.options.gridSpace;
 
 				var radius = 1;
 
@@ -1156,6 +1486,11 @@ B.Terrain = B.Class.extend({
 				Vindex++;
 			}
 		}
+
+		this._mesh = new THREE.Mesh(this._geometry, new THREE.MeshBasicMaterial({
+			//map: THREE.ImageUtils.loadTexture('lib/textures/seamless-dirt.jpg')
+			color: 0x0000ff
+		}));
 	},
 	_findClosestPoint: function (x, y, points) {
 		// Find the closest point to x,y in the given set of points
@@ -1218,7 +1553,7 @@ B.Light = B.Class.extend({
 		var directionalLight = new THREE.DirectionalLight(0xffffff);
 		directionalLight.position.set(x, y, z).normalize();
 
-		model.addThreeGeometry(directionalLight);
+		model.addObject(directionalLight);
 		return this;
 	},
 	_latlon2meters: function (lat, lon) {
@@ -1244,13 +1579,28 @@ B.light = function (id, options) {
 
 B.OSMDataContainer = B.Class.extend({
 	options: {
-
+		render: ['roads'],
 	},
 	initialize: function (data, options) {
 		options = B.setOptions(this, options);
 
 		this.addData(data);
 		return this;
+	},
+	addTo: function (model) {
+		// Loop over things to render, and add them each to the model
+		for (var i in this.options.render) {
+			var feature = this.options.render[i];
+
+			switch (feature) {
+			case 'roads':
+				var roads = this.get('roads');
+				console.log(roads);
+			}
+
+		}
+		//model.addObject();
+		console.log(model);
 	},
 	addData: function (data) {
 		if (!this._data) {
@@ -1270,40 +1620,78 @@ B.OSMDataContainer = B.Class.extend({
 			this._data.length = i;
 		}
 	},
-	getRoads: function () {
+	get: function (feature) {
 		// TODO: atm, this gets everything with the key highway. We should be 
 		// checking for highway values that correspond to roads
-		var roads = [];
+		var featureData = [];
 		var self = this;
-		this._data.way.forEach(function (way) {
-			if (self._checkTags(way.tag, 'highway')) {
-				roads.push(way);
-			}
-		});
-		return roads;
+
+
+		switch (feature) {
+		case 'roads':
+			var roadValues = ['motorway', 'motorway_link', 'trunk', 'trunk_link',
+				'primary', 'primary_link', 'secondary', 'secondary_link', 'tertiary',
+				'tertiary_link', 'residential', 'unclassified', 'service', 'track'];
+			this._data.way.forEach(function (way) {
+				// TODO: Clean this up to use _normalizeTagsArray
+				var tags = self._normalizeTagsArray(way.tag);
+				var tagVal = self._getTagValue(tags, 'highway');
+
+				if (roadValues.indexOf(tagVal) > -1) { // If roadValues contains tagVal
+					featureData.push(way);
+				}
+			});
+			break;
+		}
+
+		return featureData;
 	},
-	_checkTags: function (tags, key, value) {
+	_getTagValue: function (tags, key) {
+		// Search through the tags for the given key.
+		// If found, return it. If not, return null
+		var self = this;
+		var nTags = this._normalizeTagsArray(tags);
+
+		for (var i = 0; i < nTags.length; i++) {
+			if (self._KVmatches(nTags[i], key)) {
+				return nTags[i]['@v'];
+			}
+		}
+		return null;
+	},
+	_hasTag: function (tags, key, value) {
 		// Search through tags for a key/value pair
 		// If value is omitted, simply check if key is defined
+
+		// If found 
+
+		// TODO: Clean this up to use _normalizeTagsArray
 		var self = this;
-		if (!tags) {
-			// Handle the case where there are no tags
-			return false;
-		} else if (typeof tags['@k'] !== 'undefined') {
-			// Handle the case where tags is a single object instead of an array
-			return self._hasKV(tags, key, value);
-		} else {
-			// Loop over the array of tag objects
-			for (var i = 0; i < tags.length; i++) {
-				if (self._hasKV(tags[i], key, value)) {
-					return true;
-				}
+
+		var nTags = this._normalizeTagsArray(tags);
+		// Loop over the array of tag objects
+		for (var i = 0; i < nTags.length; i++) {
+			if (self._KVmatches(nTags[i], key, value)) {
+				return true;
 			}
 		}
 		return false;
 	},
-	_hasKV: function (tag, key, value) {
+	_KVmatches: function (tag, key, value) {
 		return tag['@k'] === key && (typeof value === 'undefined' || tag['@v'] === value);
+	},
+	_normalizeTagsArray: function (tags) {
+		if (tags instanceof Array) {
+			// If it's an array, we're done.
+			return tags;
+		} else if (typeof tags === 'undefined') {
+			// Handle the case where there are no tags
+			return [];
+		} else {
+			// I *think* the only other case is where tags is a single tag object.
+			// In this case, return an array with tags in it
+			return [tags];
+		}
 	}
 });
 
