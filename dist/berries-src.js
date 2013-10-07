@@ -1264,7 +1264,6 @@ B.Terrain = B.Class.extend({
 		//this._geometry.computeCentroids();
 
 		this._updateGeometry();
-		THREE.GeometryUtils.triangulateQuads(this._mesh);
 
 		this._mesh.translateX(this._dataWidthInMeters / 2);
 		this._mesh.translateZ(this._dataDepthInMeters / 2);
@@ -1313,9 +1312,6 @@ B.Terrain = B.Class.extend({
 		console.log(line);
 
 		console.log(this._geometry);
-
-
-
 
 
 		var rc = new THREE.Raycaster();
