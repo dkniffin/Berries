@@ -27,10 +27,9 @@ B.OSMDataContainer = B.Class.extend({
 				for (var roadI in roads) {
 					var road = roads[roadI];
 					var nodes = [];
-					roads['nd'].forEach(function(node) {
-						nodes.push(this._nodes)
-					});
-
+					for (var nodeI in roads.nd) {
+						nodes.push(roads.nd[nodeI]);
+					}
 				}
 			}
 		}

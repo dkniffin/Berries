@@ -153,6 +153,20 @@ B.Util = {
 		return cache[str](data);
 	},
 
+	arrayMerge: function (origData, addData) {
+		// Algorithm taken from jQuery's merge function
+		var len = +addData.length,
+			j = 0,
+			i = origData.length;
+
+		for (; j < len; j++) {
+			origData[i++] = addData[j];
+		}
+		origData.length = i;
+
+		return origData;
+	},
+
 	isArray: function (obj) {
 		return (Object.prototype.toString.call(obj) === '[object Array]');
 	},
@@ -1238,14 +1252,19 @@ B.Terrain = B.Class.extend({
 
 		// Set up the geometry
 		//this._geometry = new THREE.PlaneGeometry(options.planeWidth, options.planeHeight,
-		//this._geometry = new THREE.PlaneGeometry(this._dataWidthInMeters, this._dataDepthInMeters,
-		this._geometry = new THREE.PlaneGeometry(this._dataDepthInMeters, this._dataWidthInMeters,
+		this._geometry = new THREE.PlaneGeometry(this._dataWidthInMeters, this._dataDepthInMeters,
+		//this._geometry = new THREE.PlaneGeometry(this._dataDepthInMeters, this._dataWidthInMeters,
 			this._numWidthGridPts - 1, this._numDepthGridPts - 1);
 
 		this._geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+
 		
+		THREE.GeometryUtils.triangulateQuads(this._geometry);
+		//this._geometry.computeFaceNormals();
+		//this._geometry.computeCentroids();
 
 		this._updateGeometry();
+		THREE.GeometryUtils.triangulateQuads(this._mesh);
 
 		this._mesh.translateX(this._dataWidthInMeters / 2);
 		this._mesh.translateZ(this._dataDepthInMeters / 2);
@@ -1270,7 +1289,9 @@ B.Terrain = B.Class.extend({
 		// Return the elevation of the terrain at the given lat/lon
 		var ele;
 		var xym = this._latlon2meters(lat, lon);
-		console.log(xym);
+		//console.log('lat: ' + lat);
+		//console.log('lon: ' + lon);
+		//console.log(xym);
 		//var ray = new THREE.Ray(new THREE.Vector3(xym.x, 10000, xym.y), new THREE.Vector3(0, 1, 0));
 
 
@@ -1283,18 +1304,29 @@ B.Terrain = B.Class.extend({
 	    geometry.vertices.push(new THREE.Vector3(xym.x, 2300, xym.y));
 	    geometry.vertices.push(new THREE.Vector3(xym.x, 0, xym.y));
 
-	    //geometry.applyMatrix(new THREE.Matrix4().makeRotationX(Math.PI));
+	    //geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI));
 
 
 		var line = new THREE.Line(geometry, material);
 
 		model.addObject(line);
+		console.log(line);
+
+		console.log(this._geometry);
 
 
-		var rc = new THREE.Raycaster(
-			new THREE.Vector3(xym.x, 10000, xym.y),
-			new THREE.Vector3(0, -1, 0));
-		console.log(rc.intersectObject(this._mesh));
+
+
+
+		var rc = new THREE.Raycaster();
+		rc.set(new THREE.Vector3(xym.x, 2300, xym.y), new THREE.Vector3(0, -1, 0));
+
+		console.log(this._mesh);
+
+		var intersects = rc.intersectObject(this._mesh);
+		console.log(intersects);
+
+
 		return ele;
 	},
 	_latlon2meters: function (lat, lon) {
@@ -1306,8 +1338,10 @@ B.Terrain = B.Class.extend({
 		var latlng = B.latLng(lat, lon);
 
 		return {
-			x: latlng.distanceTo([latlng.lat, this._origin.lng]),
-			y: latlng.distanceTo([this._origin.lat, latlng.lng]),
+			//x: latlng.distanceTo([latlng.lat, this._origin.lng]),
+			//y: latlng.distanceTo([this._origin.lat, latlng.lng]),
+			x: this._origin.distanceTo([latlng.lat, this._origin.lng]),
+			y: this._origin.distanceTo([this._origin.lat, latlng.lng]),
 			straightLine: latlng.distanceTo(this._origin)
 		};
 	},
@@ -1340,6 +1374,7 @@ B.Terrain = B.Class.extend({
 			});
 		}
 
+		//console.log(data);
 		return data;
 	},
 	// Update the world dimensions
@@ -1403,6 +1438,8 @@ B.Terrain = B.Class.extend({
 
 
 		// Set up our boxes for organizing the points
+		var gridApproximationBoxes = [];
+		/*
 		var gridApproximationBoxes = new Array(this._numWidthGridPts + 5);
 		for (var a = 0; a < gridApproximationBoxes.length; a++) {
 			gridApproximationBoxes[a] = new Array(this._numDepthGridPts + 5);
@@ -1410,6 +1447,7 @@ B.Terrain = B.Class.extend({
 				gridApproximationBoxes[a][b] = [];
 			}
 		}
+		*/
 
 		// Sort each node into a box
 		for (var ptIndex in inData) {
@@ -1422,6 +1460,12 @@ B.Terrain = B.Class.extend({
 			// Find the containing box
 			var gabX = this._customRound(ptX, 'down', this.options.gridSpace) / this.options.gridSpace;
 			var gabY = this._customRound(ptY, 'down', this.options.gridSpace) / this.options.gridSpace;
+			if (!gridApproximationBoxes[gabX]) {
+				gridApproximationBoxes[gabX] = [];
+			}
+			if (!gridApproximationBoxes[gabX][gabY]) {
+				gridApproximationBoxes[gabX][gabY] = [];
+			}
 
 			gridApproximationBoxes[gabX][gabY].push(ptIndex);
 
@@ -1570,133 +1614,6 @@ B.Light = B.Class.extend({
 
 B.light = function (id, options) {
 	return new B.Light(id, options);
-};
-
-/* 
- * B.OSMDataContainer is reads in OSM data in JSON format, and allows 
- * access to various data (eg: roads, buildings, etc)
- */
-
-B.OSMDataContainer = B.Class.extend({
-	options: {
-		render: ['roads'],
-	},
-	initialize: function (data, options) {
-		options = B.setOptions(this, options);
-
-		this.addData(data);
-		return this;
-	},
-	addTo: function (model) {
-		// Loop over things to render, and add them each to the model
-		for (var i in this.options.render) {
-			var feature = this.options.render[i];
-
-			switch (feature) {
-			case 'roads':
-				var roads = this.get('roads');
-				console.log(roads);
-			}
-
-		}
-		//model.addObject();
-		console.log(model);
-	},
-	addData: function (data) {
-		if (!this._data) {
-			// If the data doesn't already exist, simply add it
-			this._data = data;
-		} else {
-			// TODO: check if this functionality works
-			// Else, merge the two.
-			// Algorithm taken from jQuery's merge function
-			var len = +data.length,
-				j = 0,
-				i = this._data.length;
-
-			for (; j < len; j++) {
-				this._data[i++] = data[j];
-			}
-			this._data.length = i;
-		}
-	},
-	get: function (feature) {
-		// TODO: atm, this gets everything with the key highway. We should be 
-		// checking for highway values that correspond to roads
-		var featureData = [];
-		var self = this;
-
-
-		switch (feature) {
-		case 'roads':
-			var roadValues = ['motorway', 'motorway_link', 'trunk', 'trunk_link',
-				'primary', 'primary_link', 'secondary', 'secondary_link', 'tertiary',
-				'tertiary_link', 'residential', 'unclassified', 'service', 'track'];
-			this._data.way.forEach(function (way) {
-				// TODO: Clean this up to use _normalizeTagsArray
-				var tags = self._normalizeTagsArray(way.tag);
-				var tagVal = self._getTagValue(tags, 'highway');
-
-				if (roadValues.indexOf(tagVal) > -1) { // If roadValues contains tagVal
-					featureData.push(way);
-				}
-			});
-			break;
-		}
-
-		return featureData;
-	},
-	_getTagValue: function (tags, key) {
-		// Search through the tags for the given key.
-		// If found, return it. If not, return null
-		var self = this;
-		var nTags = this._normalizeTagsArray(tags);
-
-		for (var i = 0; i < nTags.length; i++) {
-			if (self._KVmatches(nTags[i], key)) {
-				return nTags[i]['@v'];
-			}
-		}
-		return null;
-	},
-	_hasTag: function (tags, key, value) {
-		// Search through tags for a key/value pair
-		// If value is omitted, simply check if key is defined
-
-		// If found 
-
-		// TODO: Clean this up to use _normalizeTagsArray
-		var self = this;
-
-		var nTags = this._normalizeTagsArray(tags);
-		// Loop over the array of tag objects
-		for (var i = 0; i < nTags.length; i++) {
-			if (self._KVmatches(nTags[i], key, value)) {
-				return true;
-			}
-		}
-		return false;
-	},
-	_KVmatches: function (tag, key, value) {
-		return tag['@k'] === key && (typeof value === 'undefined' || tag['@v'] === value);
-	},
-	_normalizeTagsArray: function (tags) {
-		if (tags instanceof Array) {
-			// If it's an array, we're done.
-			return tags;
-		} else if (typeof tags === 'undefined') {
-			// Handle the case where there are no tags
-			return [];
-		} else {
-			// I *think* the only other case is where tags is a single tag object.
-			// In this case, return an array with tags in it
-			return [tags];
-		}
-	}
-});
-
-B.osmdata = function (id, options) {
-	return new B.OSMDataContainer(id, options);
 };
 
 }(window, document));

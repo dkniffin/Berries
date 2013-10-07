@@ -25,12 +25,16 @@ B.Terrain = B.Class.extend({
 
 		// Set up the geometry
 		//this._geometry = new THREE.PlaneGeometry(options.planeWidth, options.planeHeight,
-		//this._geometry = new THREE.PlaneGeometry(this._dataWidthInMeters, this._dataDepthInMeters,
-		this._geometry = new THREE.PlaneGeometry(this._dataDepthInMeters, this._dataWidthInMeters,
+		this._geometry = new THREE.PlaneGeometry(this._dataWidthInMeters, this._dataDepthInMeters,
+		//this._geometry = new THREE.PlaneGeometry(this._dataDepthInMeters, this._dataWidthInMeters,
 			this._numWidthGridPts - 1, this._numDepthGridPts - 1);
 
 		this._geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+
 		
+		THREE.GeometryUtils.triangulateQuads(this._geometry);
+		//this._geometry.computeFaceNormals();
+		//this._geometry.computeCentroids();
 
 		this._updateGeometry();
 
@@ -57,7 +61,9 @@ B.Terrain = B.Class.extend({
 		// Return the elevation of the terrain at the given lat/lon
 		var ele;
 		var xym = this._latlon2meters(lat, lon);
-		console.log(xym);
+		//console.log('lat: ' + lat);
+		//console.log('lon: ' + lon);
+		//console.log(xym);
 		//var ray = new THREE.Ray(new THREE.Vector3(xym.x, 10000, xym.y), new THREE.Vector3(0, 1, 0));
 
 
@@ -70,18 +76,26 @@ B.Terrain = B.Class.extend({
 	    geometry.vertices.push(new THREE.Vector3(xym.x, 2300, xym.y));
 	    geometry.vertices.push(new THREE.Vector3(xym.x, 0, xym.y));
 
-	    //geometry.applyMatrix(new THREE.Matrix4().makeRotationX(Math.PI));
+	    //geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI));
 
 
 		var line = new THREE.Line(geometry, material);
 
 		model.addObject(line);
+		console.log(line);
+
+		console.log(this._geometry);
 
 
-		var rc = new THREE.Raycaster(
-			new THREE.Vector3(xym.x, 10000, xym.y),
-			new THREE.Vector3(0, -1, 0));
-		console.log(rc.intersectObject(this._mesh));
+		var rc = new THREE.Raycaster();
+		rc.set(new THREE.Vector3(xym.x, 2300, xym.y), new THREE.Vector3(0, -1, 0));
+
+		console.log(this._mesh);
+
+		var intersects = rc.intersectObject(this._mesh);
+		console.log(intersects);
+
+
 		return ele;
 	},
 	_latlon2meters: function (lat, lon) {
@@ -93,8 +107,10 @@ B.Terrain = B.Class.extend({
 		var latlng = B.latLng(lat, lon);
 
 		return {
-			x: latlng.distanceTo([latlng.lat, this._origin.lng]),
-			y: latlng.distanceTo([this._origin.lat, latlng.lng]),
+			//x: latlng.distanceTo([latlng.lat, this._origin.lng]),
+			//y: latlng.distanceTo([this._origin.lat, latlng.lng]),
+			x: this._origin.distanceTo([latlng.lat, this._origin.lng]),
+			y: this._origin.distanceTo([this._origin.lat, latlng.lng]),
 			straightLine: latlng.distanceTo(this._origin)
 		};
 	},
@@ -127,6 +143,7 @@ B.Terrain = B.Class.extend({
 			});
 		}
 
+		//console.log(data);
 		return data;
 	},
 	// Update the world dimensions
@@ -190,6 +207,8 @@ B.Terrain = B.Class.extend({
 
 
 		// Set up our boxes for organizing the points
+		var gridApproximationBoxes = [];
+		/*
 		var gridApproximationBoxes = new Array(this._numWidthGridPts + 5);
 		for (var a = 0; a < gridApproximationBoxes.length; a++) {
 			gridApproximationBoxes[a] = new Array(this._numDepthGridPts + 5);
@@ -197,6 +216,7 @@ B.Terrain = B.Class.extend({
 				gridApproximationBoxes[a][b] = [];
 			}
 		}
+		*/
 
 		// Sort each node into a box
 		for (var ptIndex in inData) {
@@ -209,6 +229,12 @@ B.Terrain = B.Class.extend({
 			// Find the containing box
 			var gabX = this._customRound(ptX, 'down', this.options.gridSpace) / this.options.gridSpace;
 			var gabY = this._customRound(ptY, 'down', this.options.gridSpace) / this.options.gridSpace;
+			if (!gridApproximationBoxes[gabX]) {
+				gridApproximationBoxes[gabX] = [];
+			}
+			if (!gridApproximationBoxes[gabX][gabY]) {
+				gridApproximationBoxes[gabX][gabY] = [];
+			}
 
 			gridApproximationBoxes[gabX][gabY].push(ptIndex);
 
