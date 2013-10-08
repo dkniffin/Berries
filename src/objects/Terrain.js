@@ -59,15 +59,13 @@ B.Terrain = B.Class.extend({
 			throw new Error('Unsupported terrain data type');
 		}
 	},
-	heightAt: function (lat, lon, model) {
+	heightAt: function (lat, lon) {
 		// Return the elevation of the terrain at the given lat/lon
 		var ele; // The return value
 
 		if (!this._bounds.contains([lat, lon])) {
 			throw new Error('Coordinates outside of bounds');
 		}
-
-
 
 		var xym = this._latlon2meters(lat, lon);
 
@@ -79,14 +77,10 @@ B.Terrain = B.Class.extend({
 			lookupYfloor = Math.floor(Y) - this._numDGPHalf() + 2,
 			lookupYceil = Math.ceil(Y) - this._numDGPHalf() + 2;
 
-
-
 		var v1 = this._gridHeightLookup[lookupXfloor][lookupYfloor],
 			v2 = this._gridHeightLookup[lookupXfloor][lookupYceil],
 			v3 = this._gridHeightLookup[lookupXceil][lookupYfloor],
 			v4 = this._gridHeightLookup[lookupXceil][lookupYceil];
-
-
 
 		/* This code is an attempt at a real linear interpolation, but I couldn't get it working.
 		var t = v2 - v1;
@@ -96,24 +90,8 @@ B.Terrain = B.Class.extend({
 		ele =  E + s * (F - E);
 		*/
 
-
 		// Simply estimate the value from an average of the four surrounding points
 		ele = (v1 + v2 + v3 + v4) / 4;
-
-
-		var material = new THREE.LineBasicMaterial({
-	        color: 0xff0000
-	    });
-	    var geometry = new THREE.Geometry();
-	    geometry.vertices.push(new THREE.Vector3(xym.x, 2300, xym.y));
-	    geometry.vertices.push(new THREE.Vector3(xym.x, 0, xym.y));
-
-		var line = new THREE.Line(geometry, material);
-
-		model.addObject(line);
-
-		console.log(ele);
-
 
 		return ele;
 	},
@@ -126,8 +104,6 @@ B.Terrain = B.Class.extend({
 		var latlng = B.latLng(lat, lon);
 
 		return {
-			//x: latlng.distanceTo([latlng.lat, this._origin.lng]),
-			//y: latlng.distanceTo([this._origin.lat, latlng.lng]),
 			x: this._origin.distanceTo([latlng.lat, this._origin.lng]),
 			y: this._origin.distanceTo([this._origin.lat, latlng.lng]),
 			straightLine: latlng.distanceTo(this._origin)
@@ -155,8 +131,6 @@ B.Terrain = B.Class.extend({
 			data.nodes.push({
 				latlng: latlng,
 				ele: inData.nodes[i].ele,
-				//xm: latlng.distanceTo([latlng.lat, this._origin.lng]),
-				//ym: latlng.distanceTo([this._origin.lat, latlng.lng])
 				xm: xym.x,
 				ym: xym.y
 			});
@@ -236,8 +210,6 @@ B.Terrain = B.Class.extend({
 			var ptX = inData[ptIndex].xm;
 			var ptY = inData[ptIndex].ym;
 
-
-
 			// Find the containing box
 			var gabX = this._customRound(ptX, 'down', this.options.gridSpace) / this.options.gridSpace;
 			var gabY = this._customRound(ptY, 'down', this.options.gridSpace) / this.options.gridSpace;
@@ -249,7 +221,6 @@ B.Terrain = B.Class.extend({
 			}
 
 			gridApproximationBoxes[gabX][gabY].push(ptIndex);
-
 		}
 
 
