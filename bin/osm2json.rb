@@ -1,5 +1,11 @@
 #!/usr/bin/ruby
 
+# This script converts from osm xml into the json format needed for berries.
+# The input file can be generated a number of different ways:
+#  - Save the data from JOSM
+#  - Overpass
+#  - Generate it yourself from a postgresql database
+
 require 'optparse'
 require 'json'
 require 'xmlsimple'
