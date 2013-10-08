@@ -11,6 +11,13 @@ B.Terrain = B.Class.extend({
 	_dataDepthInMeters: 100,
 	_origin: new B.LatLng(0, 0), // The lat/lng coords of the origin of the terrain grid
 
+	_gridHeightLookup: {},
+
+	_lookupOffset: {x: 0, z: 0 },
+	_lookupSpacing: {x: 0, z: 0 },
+
+	_bounds: new B.LatLngBounds(),
+
 	options: {
 		gridSpace: 100, // In meters
 		dataType: 'SRTM_vector'
@@ -30,11 +37,6 @@ B.Terrain = B.Class.extend({
 			this._numWidthGridPts - 1, this._numDepthGridPts - 1);
 
 		this._geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
-
-		
-		THREE.GeometryUtils.triangulateQuads(this._geometry);
-		//this._geometry.computeFaceNormals();
-		//this._geometry.computeCentroids();
 
 		this._updateGeometry();
 
@@ -59,41 +61,58 @@ B.Terrain = B.Class.extend({
 	},
 	heightAt: function (lat, lon, model) {
 		// Return the elevation of the terrain at the given lat/lon
-		var ele;
+		var ele; // The return value
+
+		if (!this._bounds.contains([lat, lon])) {
+			throw new Error('Coordinates outside of bounds');
+		}
+
+
+
 		var xym = this._latlon2meters(lat, lon);
-		//console.log('lat: ' + lat);
-		//console.log('lon: ' + lon);
-		//console.log(xym);
-		//var ray = new THREE.Ray(new THREE.Vector3(xym.x, 10000, xym.y), new THREE.Vector3(0, 1, 0));
+
+		var X = (xym.x - this._lookupOffset.x) / this._lookupSpacing.x;
+		var Y = (xym.y - this._lookupOffset.z) / this._lookupSpacing.z;
+
+		var lookupXfloor = Math.floor(X) - this._numWGPHalf() + 2,
+			lookupXceil = Math.ceil(X) - this._numWGPHalf() + 2,
+			lookupYfloor = Math.floor(Y) - this._numDGPHalf() + 2,
+			lookupYceil = Math.ceil(Y) - this._numDGPHalf() + 2;
+
+
+
+		var v1 = this._gridHeightLookup[lookupXfloor][lookupYfloor],
+			v2 = this._gridHeightLookup[lookupXfloor][lookupYceil],
+			v3 = this._gridHeightLookup[lookupXceil][lookupYfloor],
+			v4 = this._gridHeightLookup[lookupXceil][lookupYceil];
+
+
+
+		/* This code is an attempt at a real linear interpolation, but I couldn't get it working.
+		var t = v2 - v1;
+		var s = v3 - v1;
+		var E = v3 +  t * (v4 - v3);
+		var F = v1 + t * (v2 - v1);
+		ele =  E + s * (F - E);
+		*/
+
+
+		// Simply estimate the value from an average of the four surrounding points
+		ele = (v1 + v2 + v3 + v4) / 4;
 
 
 		var material = new THREE.LineBasicMaterial({
 	        color: 0xff0000
 	    });
 	    var geometry = new THREE.Geometry();
-	    //geometry.vertices.push(new THREE.Vector3(-3750, 2300, -3750));
-	    //geometry.vertices.push(new THREE.Vector3(-3750, 0, -3750));
 	    geometry.vertices.push(new THREE.Vector3(xym.x, 2300, xym.y));
 	    geometry.vertices.push(new THREE.Vector3(xym.x, 0, xym.y));
-
-	    //geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI));
-
 
 		var line = new THREE.Line(geometry, material);
 
 		model.addObject(line);
-		console.log(line);
 
-		console.log(this._geometry);
-
-
-		var rc = new THREE.Raycaster();
-		rc.set(new THREE.Vector3(xym.x, 2300, xym.y), new THREE.Vector3(0, -1, 0));
-
-		console.log(this._mesh);
-
-		var intersects = rc.intersectObject(this._mesh);
-		console.log(intersects);
+		console.log(ele);
 
 
 		return ele;
@@ -149,6 +168,8 @@ B.Terrain = B.Class.extend({
 	// Update the world dimensions
 	_updateWorldDimensions: function (minLat, maxLat, minLon, maxLon) {
 		var origin = this._origin = new B.LatLng(minLat, minLon);
+		this._bounds = new B.LatLngBounds([minLat, minLon], [maxLat, maxLon]);
+		console.log(this._bounds);
 
 		// The logic used below is: find the distance between max and min in
 		// degrees, convert to meters, and divide by the spacing between grid
@@ -208,15 +229,6 @@ B.Terrain = B.Class.extend({
 
 		// Set up our boxes for organizing the points
 		var gridApproximationBoxes = [];
-		/*
-		var gridApproximationBoxes = new Array(this._numWidthGridPts + 5);
-		for (var a = 0; a < gridApproximationBoxes.length; a++) {
-			gridApproximationBoxes[a] = new Array(this._numDepthGridPts + 5);
-			for (var b = 0; b < gridApproximationBoxes[a].length; b++) {
-				gridApproximationBoxes[a][b] = [];
-			}
-		}
-		*/
 
 		// Sort each node into a box
 		for (var ptIndex in inData) {
@@ -239,6 +251,14 @@ B.Terrain = B.Class.extend({
 			gridApproximationBoxes[gabX][gabY].push(ptIndex);
 
 		}
+
+
+		this._lookupOffset.x = geo.vertices[this._numWGPHalf()].x;
+		this._lookupOffset.z = geo.vertices[this._numWidthGridPts * this._numDGPHalf()].z;
+
+		this._lookupSpacing.x = geo.vertices[2].x - geo.vertices[1].x;
+		this._lookupSpacing.z = geo.vertices[this._numWidthGridPts * 2].z - geo.vertices[this._numWidthGridPts].z;
+
 
 		var Vindex = 0;
 		var minXindex, minYindex, maxXindex, maxYindex;
@@ -296,6 +316,17 @@ B.Terrain = B.Class.extend({
 				    
 				var closest = this._findClosestPoint(jAbs, iAbs, points);
 				geo.vertices[Vindex].y = closest.z;
+
+				var x = Math.ceil((geo.vertices[Vindex].x - this._lookupOffset.x) / this._lookupSpacing.x),
+					y = geo.vertices[Vindex].y,
+					z = Math.ceil((geo.vertices[Vindex].z - this._lookupOffset.z) / this._lookupSpacing.z);
+
+				if (!this._gridHeightLookup[x]) {
+					this._gridHeightLookup[x] = [];
+				}
+
+				this._gridHeightLookup[x][z] = y;
+
 				Vindex++;
 			}
 		}
@@ -304,6 +335,8 @@ B.Terrain = B.Class.extend({
 			//map: THREE.ImageUtils.loadTexture('lib/textures/seamless-dirt.jpg')
 			color: 0x0000ff
 		}));
+
+		console.log(this._mesh);
 	},
 	_findClosestPoint: function (x, y, points) {
 		// Find the closest point to x,y in the given set of points
