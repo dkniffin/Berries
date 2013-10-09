@@ -1,6 +1,7 @@
 var fs = require('fs'),
     jshint = require('jshint'),
     UglifyJS = require('uglify-js'),
+    Rsync = require('rsync')
 
     deps = require('./deps.js').deps,
     hintrc = require('./hintrc.js').config;
@@ -153,6 +154,17 @@ exports.build = function (compsBase32, buildName) {
 		fs.writeFileSync(path, newCompressed);
 		console.log('\tSaved to ' + path);
 	}
+
+
+	// Copy the textures directory into dist
+
+	var rsync = new Rsync()
+	.flags('az')
+	.source('src/textures')
+	.destination('dest/textures');
+
+	rsync.execute();
+
 };
 
 exports.test = function() {

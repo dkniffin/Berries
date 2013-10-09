@@ -171,6 +171,22 @@ B.Util = {
 		return (Object.prototype.toString.call(obj) === '[object Array]');
 	},
 
+	getTexturePath: function () {
+		var scripts = document.getElementsByTagName('script'),
+			berriesRe = /[\/^]berries[\-\._]?([\w\-\._]*)\.js\??/;
+
+		var i, len, src, matches, path;
+		for (i = 0, len = scripts.length; i < len; i++) {
+			src = scripts[i].src;
+			matches = src.match(berriesRe);
+
+			if (matches) {
+				path = src.split(berriesRe)[0];
+				return (path ? path + '/' : '') + 'textures';
+			}
+		}
+	},
+
 	emptyImageUrl: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='
 };
 
@@ -231,6 +247,7 @@ B.extend = B.Util.extend;
 B.bind = B.Util.bind;
 B.stamp = B.Util.stamp;
 B.setOptions = B.Util.setOptions;
+
 
 /*
  * B.Class is just like Leaflet's L.Class. It powers the 
@@ -1718,28 +1735,6 @@ B.Road = B.Class.extend({
 		model.addObject(mesh);
 		return this;
 	}
-
-
-
-
-/*
-	_perpPoint: function (x1, y1, x2, y2, d) {
-		// This function returns a point (x3, y3) that is perpendicular
-	   //	to the created from (x1, y1) and (x2, y2) at a distance d from
-		// (x2, y2)
-
-		// The slope and y intercept of the perpendicular line
-		var mperp = (x2 - x1)/(y2 - y1); 
-		var bperp = y2 - mperp * x2;
-		
-		
-
-		var x3 = x2 + d * (x2 - x1);
-		var y3 = y2 + d * (y2 - y1);
-
-
-	}
-	*/
 });
 
 B.road = function (id, options) {
