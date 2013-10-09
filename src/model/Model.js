@@ -25,6 +25,9 @@ B.Model = B.Class.extend({
 		
 		this._scene.add(terrain._mesh);
 	},
+	getTerrain: function () {
+		return this._terrain;
+	},
 	addObject: function (object) {
 		this._scene.add(object);
 		return this;
@@ -55,7 +58,7 @@ B.Model = B.Class.extend({
 	},
 	_initCamera: function () {
 		// Create the camera
-		var camera = this._camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 20000);
+		var camera = this._camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 20000);
 
 		// First person controls
 		this._controls = new THREE.FirstPersonControls(camera);

@@ -17,7 +17,10 @@ B.Terrain = B.Class.extend({
 	_lookupSpacing: {x: 0, z: 0 },
 
 	_bounds: new B.LatLngBounds(),
+	_eleBounds: {},
 
+
+	_count: 0,
 	options: {
 		gridSpace: 100, // In meters
 		dataType: 'SRTM_vector'
@@ -31,7 +34,6 @@ B.Terrain = B.Class.extend({
 		this._data = this.addData(inData);
 
 		// Set up the geometry
-		//this._geometry = new THREE.PlaneGeometry(options.planeWidth, options.planeHeight,
 		this._geometry = new THREE.PlaneGeometry(this._dataWidthInMeters, this._dataDepthInMeters,
 		//this._geometry = new THREE.PlaneGeometry(this._dataDepthInMeters, this._dataWidthInMeters,
 			this._numWidthGridPts - 1, this._numDepthGridPts - 1);
@@ -47,6 +49,24 @@ B.Terrain = B.Class.extend({
 	},
 	addTo: function (model) {
 		model.addTerrain(this);
+/*
+		var largePlaneGeometry = new THREE.PlaneGeometry(40075160, 40008000,
+				this.options.gridSpace, this.options.gridSpace);
+
+		largePlaneGeometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+
+		
+
+		var largePlaneMesh = new THREE.Mesh(largePlaneGeometry, new THREE.MeshBasicMaterial({
+			map: THREE.ImageUtils.loadTexture('lib/js/berries/src/textures/seamless-dirt.jpg')
+			//color: 0x0000ff
+		}));
+
+		largePlaneMesh.position.y = this._eleBounds.min;
+
+
+		model.addObject(largePlaneMesh);
+		*/
 		return this;
 	},
 	addData: function (inData) {
@@ -59,7 +79,7 @@ B.Terrain = B.Class.extend({
 			throw new Error('Unsupported terrain data type');
 		}
 	},
-	heightAt: function (lat, lon) {
+	heightAt: function (lat, lon, xym) {
 		// Return the elevation of the terrain at the given lat/lon
 		var ele; // The return value
 
@@ -67,15 +87,18 @@ B.Terrain = B.Class.extend({
 			throw new Error('Coordinates outside of bounds');
 		}
 
-		var xym = this._latlon2meters(lat, lon);
+		if (!xym) {
+			xym = this._latlon2meters(lat, lon);
+		}
+		
 
 		var X = (xym.x - this._lookupOffset.x) / this._lookupSpacing.x;
 		var Y = (xym.y - this._lookupOffset.z) / this._lookupSpacing.z;
 
-		var lookupXfloor = Math.floor(X) - this._numWGPHalf() + 2,
-			lookupXceil = Math.ceil(X) - this._numWGPHalf() + 2,
-			lookupYfloor = Math.floor(Y) - this._numDGPHalf() + 2,
-			lookupYceil = Math.ceil(Y) - this._numDGPHalf() + 2;
+		var lookupXfloor = Math.floor(X) - this._numWGPHalf(),
+			lookupXceil = Math.ceil(X) - this._numWGPHalf(),
+			lookupYfloor = Math.floor(Y) - this._numDGPHalf(),
+			lookupYceil = Math.ceil(Y) - this._numDGPHalf();
 
 		var v1 = this._gridHeightLookup[lookupXfloor][lookupYfloor],
 			v2 = this._gridHeightLookup[lookupXfloor][lookupYceil],
@@ -92,8 +115,19 @@ B.Terrain = B.Class.extend({
 
 		// Simply estimate the value from an average of the four surrounding points
 		ele = (v1 + v2 + v3 + v4) / 4;
+		this._count++;
+		//console.log(this._count);
 
 		return ele;
+	},
+	worldVector: function (lat, lon) {
+		// Return a Vector3 with world coords for given lat, lon
+		var xym = this._latlon2meters(lat, lon);
+
+		var ele = this.heightAt(lat, lon, xym);
+		console.log(ele);
+
+		return new THREE.Vector3(xym.x, ele, xym.y);
 	},
 	_latlon2meters: function (lat, lon) {
 		// This function takes a lat/lon pair, and converts it to meters,
@@ -120,7 +154,9 @@ B.Terrain = B.Class.extend({
 		//var data = inData; // Save the data in a global variable
 
 		// Update the world dimensions based on the data
-		this._updateWorldDimensions(inData.minLat, inData.maxLat, inData.minLon, inData.maxLon);
+		this._updateWorldDimensions(inData.minLat, inData.maxLat,
+									inData.minLon, inData.maxLon,
+									inData.minEle, inData.maxEle);
 
 
 		// Create a LatLng object for each node, populate the elevation,
@@ -140,10 +176,11 @@ B.Terrain = B.Class.extend({
 		return data;
 	},
 	// Update the world dimensions
-	_updateWorldDimensions: function (minLat, maxLat, minLon, maxLon) {
+	_updateWorldDimensions: function (minLat, maxLat, minLon, maxLon, minEle, maxEle) {
 		var origin = this._origin = new B.LatLng(minLat, minLon);
 		this._bounds = new B.LatLngBounds([minLat, minLon], [maxLat, maxLon]);
-		console.log(this._bounds);
+
+		this._eleBounds = { min: minEle, max: maxEle};
 
 		// The logic used below is: find the distance between max and min in
 		// degrees, convert to meters, and divide by the spacing between grid
@@ -288,9 +325,9 @@ B.Terrain = B.Class.extend({
 				var closest = this._findClosestPoint(jAbs, iAbs, points);
 				geo.vertices[Vindex].y = closest.z;
 
-				var x = Math.ceil((geo.vertices[Vindex].x - this._lookupOffset.x) / this._lookupSpacing.x),
+				var x = Math.round((geo.vertices[Vindex].x - this._lookupOffset.x) / this._lookupSpacing.x),
 					y = geo.vertices[Vindex].y,
-					z = Math.ceil((geo.vertices[Vindex].z - this._lookupOffset.z) / this._lookupSpacing.z);
+					z = Math.round((geo.vertices[Vindex].z - this._lookupOffset.z) / this._lookupSpacing.z);
 
 				if (!this._gridHeightLookup[x]) {
 					this._gridHeightLookup[x] = [];

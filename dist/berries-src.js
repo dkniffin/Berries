@@ -1169,6 +1169,9 @@ B.Model = B.Class.extend({
 		
 		this._scene.add(terrain._mesh);
 	},
+	getTerrain: function () {
+		return this._terrain;
+	},
 	addObject: function (object) {
 		this._scene.add(object);
 		return this;
@@ -1199,7 +1202,7 @@ B.Model = B.Class.extend({
 	},
 	_initCamera: function () {
 		// Create the camera
-		var camera = this._camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 20000);
+		var camera = this._camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 20000);
 
 		// First person controls
 		this._controls = new THREE.FirstPersonControls(camera);
@@ -1244,7 +1247,10 @@ B.Terrain = B.Class.extend({
 	_lookupSpacing: {x: 0, z: 0 },
 
 	_bounds: new B.LatLngBounds(),
+	_eleBounds: {},
 
+
+	_count: 0,
 	options: {
 		gridSpace: 100, // In meters
 		dataType: 'SRTM_vector'
@@ -1258,7 +1264,6 @@ B.Terrain = B.Class.extend({
 		this._data = this.addData(inData);
 
 		// Set up the geometry
-		//this._geometry = new THREE.PlaneGeometry(options.planeWidth, options.planeHeight,
 		this._geometry = new THREE.PlaneGeometry(this._dataWidthInMeters, this._dataDepthInMeters,
 		//this._geometry = new THREE.PlaneGeometry(this._dataDepthInMeters, this._dataWidthInMeters,
 			this._numWidthGridPts - 1, this._numDepthGridPts - 1);
@@ -1274,6 +1279,24 @@ B.Terrain = B.Class.extend({
 	},
 	addTo: function (model) {
 		model.addTerrain(this);
+/*
+		var largePlaneGeometry = new THREE.PlaneGeometry(40075160, 40008000,
+				this.options.gridSpace, this.options.gridSpace);
+
+		largePlaneGeometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+
+		
+
+		var largePlaneMesh = new THREE.Mesh(largePlaneGeometry, new THREE.MeshBasicMaterial({
+			map: THREE.ImageUtils.loadTexture('lib/js/berries/src/textures/seamless-dirt.jpg')
+			//color: 0x0000ff
+		}));
+
+		largePlaneMesh.position.y = this._eleBounds.min;
+
+
+		model.addObject(largePlaneMesh);
+		*/
 		return this;
 	},
 	addData: function (inData) {
@@ -1286,7 +1309,7 @@ B.Terrain = B.Class.extend({
 			throw new Error('Unsupported terrain data type');
 		}
 	},
-	heightAt: function (lat, lon) {
+	heightAt: function (lat, lon, xym) {
 		// Return the elevation of the terrain at the given lat/lon
 		var ele; // The return value
 
@@ -1294,15 +1317,18 @@ B.Terrain = B.Class.extend({
 			throw new Error('Coordinates outside of bounds');
 		}
 
-		var xym = this._latlon2meters(lat, lon);
+		if (!xym) {
+			xym = this._latlon2meters(lat, lon);
+		}
+		
 
 		var X = (xym.x - this._lookupOffset.x) / this._lookupSpacing.x;
 		var Y = (xym.y - this._lookupOffset.z) / this._lookupSpacing.z;
 
-		var lookupXfloor = Math.floor(X) - this._numWGPHalf() + 2,
-			lookupXceil = Math.ceil(X) - this._numWGPHalf() + 2,
-			lookupYfloor = Math.floor(Y) - this._numDGPHalf() + 2,
-			lookupYceil = Math.ceil(Y) - this._numDGPHalf() + 2;
+		var lookupXfloor = Math.floor(X) - this._numWGPHalf(),
+			lookupXceil = Math.ceil(X) - this._numWGPHalf(),
+			lookupYfloor = Math.floor(Y) - this._numDGPHalf(),
+			lookupYceil = Math.ceil(Y) - this._numDGPHalf();
 
 		var v1 = this._gridHeightLookup[lookupXfloor][lookupYfloor],
 			v2 = this._gridHeightLookup[lookupXfloor][lookupYceil],
@@ -1319,8 +1345,19 @@ B.Terrain = B.Class.extend({
 
 		// Simply estimate the value from an average of the four surrounding points
 		ele = (v1 + v2 + v3 + v4) / 4;
+		this._count++;
+		//console.log(this._count);
 
 		return ele;
+	},
+	worldVector: function (lat, lon) {
+		// Return a Vector3 with world coords for given lat, lon
+		var xym = this._latlon2meters(lat, lon);
+
+		var ele = this.heightAt(lat, lon, xym);
+		console.log(ele);
+
+		return new THREE.Vector3(xym.x, ele, xym.y);
 	},
 	_latlon2meters: function (lat, lon) {
 		// This function takes a lat/lon pair, and converts it to meters,
@@ -1347,7 +1384,9 @@ B.Terrain = B.Class.extend({
 		//var data = inData; // Save the data in a global variable
 
 		// Update the world dimensions based on the data
-		this._updateWorldDimensions(inData.minLat, inData.maxLat, inData.minLon, inData.maxLon);
+		this._updateWorldDimensions(inData.minLat, inData.maxLat,
+									inData.minLon, inData.maxLon,
+									inData.minEle, inData.maxEle);
 
 
 		// Create a LatLng object for each node, populate the elevation,
@@ -1367,10 +1406,11 @@ B.Terrain = B.Class.extend({
 		return data;
 	},
 	// Update the world dimensions
-	_updateWorldDimensions: function (minLat, maxLat, minLon, maxLon) {
+	_updateWorldDimensions: function (minLat, maxLat, minLon, maxLon, minEle, maxEle) {
 		var origin = this._origin = new B.LatLng(minLat, minLon);
 		this._bounds = new B.LatLngBounds([minLat, minLon], [maxLat, maxLon]);
-		console.log(this._bounds);
+
+		this._eleBounds = { min: minEle, max: maxEle};
 
 		// The logic used below is: find the distance between max and min in
 		// degrees, convert to meters, and divide by the spacing between grid
@@ -1515,9 +1555,9 @@ B.Terrain = B.Class.extend({
 				var closest = this._findClosestPoint(jAbs, iAbs, points);
 				geo.vertices[Vindex].y = closest.z;
 
-				var x = Math.ceil((geo.vertices[Vindex].x - this._lookupOffset.x) / this._lookupSpacing.x),
+				var x = Math.round((geo.vertices[Vindex].x - this._lookupOffset.x) / this._lookupSpacing.x),
 					y = geo.vertices[Vindex].y,
-					z = Math.ceil((geo.vertices[Vindex].z - this._lookupOffset.z) / this._lookupSpacing.z);
+					z = Math.round((geo.vertices[Vindex].z - this._lookupOffset.z) / this._lookupSpacing.z);
 
 				if (!this._gridHeightLookup[x]) {
 					this._gridHeightLookup[x] = [];
@@ -1614,6 +1654,196 @@ B.Light = B.Class.extend({
 
 B.light = function (id, options) {
 	return new B.Light(id, options);
+};
+
+/*
+ * B.Road is a class for drawing a road
+ */
+
+B.Road = B.Class.extend({
+
+	options: {
+		lanes: 2,
+		laneWidth: 10 // meters
+	},
+	initialize: function (way, nodes, options) {
+		options = B.setOptions(this, options);
+
+		this._way = way;
+		this._nodes = nodes;
+
+	},
+	addTo: function (model) {
+		// Create the cross section shape
+		// Credits go to bai (http://bai.dev.supcrit.com/scripts/engine/things/road.js)
+		var thickness = 0.25,
+	        width = this.options.lanes * this.options.laneWidth,
+	        thickscale = 4;
+	    var roadpoints = [
+			new THREE.Vector2(-1, 0),
+			new THREE.Vector2(-1, -width / 2 - thickness * thickscale + 5),
+			new THREE.Vector2(-1, -width / 2 - thickness * thickscale),
+			new THREE.Vector2(0.1, -width / 2 - thickness * thickscale + 0.1),
+			new THREE.Vector2(thickness * 0.75, -width / 2),
+			new THREE.Vector2(thickness, -width / 2 + thickness * thickscale),
+			new THREE.Vector2(thickness, width / 2 - thickness * thickscale),
+			new THREE.Vector2(thickness * 0.75, width / 2),
+			new THREE.Vector2(0.1, width / 2 + thickness * thickscale - 0.1),
+			new THREE.Vector2(-1, width / 2 + thickness * thickscale),
+			new THREE.Vector2(-1, width / 2 + thickness * thickscale - 5),
+			new THREE.Vector2(-1, 0),
+	    ];
+	    var roadshape = new THREE.Shape(roadpoints);
+
+
+	    var splinepoints = [];
+	    // Create the road spline (the path it follows)
+		for (var i in this._way.nodes) {
+			var nodeId = this._way.nodes[i];
+			var lat = Number(this._nodes[nodeId].lat);
+			var lon = Number(this._nodes[nodeId].lon);
+			var wvector = model.getTerrain().worldVector(lat, lon);
+
+			wvector.y += thickness; // Add a meter, so it shows up above the surface
+
+			splinepoints.push(wvector);
+		}
+		var roadspline = new THREE.SplineCurve3(splinepoints);
+
+		var geometry = new THREE.ExtrudeGeometry(roadshape, {extrudePath: roadspline });
+
+		var mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+			color: 0x959393
+		}));
+		model.addObject(mesh);
+		return this;
+	}
+
+
+
+
+/*
+	_perpPoint: function (x1, y1, x2, y2, d) {
+		// This function returns a point (x3, y3) that is perpendicular
+	   //	to the created from (x1, y1) and (x2, y2) at a distance d from
+		// (x2, y2)
+
+		// The slope and y intercept of the perpendicular line
+		var mperp = (x2 - x1)/(y2 - y1); 
+		var bperp = y2 - mperp * x2;
+		
+		
+
+		var x3 = x2 + d * (x2 - x1);
+		var y3 = y2 + d * (y2 - y1);
+
+
+	}
+	*/
+});
+
+B.road = function (id, options) {
+	return new B.Road(id, options);
+};
+
+
+/* 
+ * B.OSMDataContainer is reads in OSM data in JSON format, and allows 
+ * access to various data (eg: roads, buildings, etc)
+ */
+
+B.OSMDataContainer = B.Class.extend({
+	_nodes: [],
+	_ways: [],
+	_relations: [],
+	options: {
+		render: ['roads'],
+	},
+	initialize: function (data, options) {
+		options = B.setOptions(this, options);
+
+		this.addData(data);
+		return this;
+	},
+	addTo: function (model) {
+		// Loop over things to render, and add them each to the model
+		for (var i in this.options.render) {
+			var feature = this.options.render[i];
+
+			switch (feature) {
+			case 'roads':
+				var roads = this.get('roads');
+				for (var roadI in roads) {
+					var way = roads[roadI];
+					var nodes = [];
+					for (var j in way.nodes) {
+						var nodeId = way.nodes[j];
+						nodes[nodeId] = this._nodes[nodeId];
+					}
+					new B.Road(way, nodes).addTo(model);
+				}
+			}
+		}
+		//model.addObject();
+		console.log(model);
+	},
+	addData: function (data) {
+
+		if (!this._data) {
+			// If the data doesn't already exist, simply add it
+
+			this._nodes = data.nodes;
+			this._ways = data.ways;
+			this._relations = data.relations;
+		} else {
+			// TODO: check if this functionality works
+			// Else, merge the two.
+			
+			B.Util.arrayMerge(this._nodes, data.nodes);
+			B.Util.arrayMerge(this._ways, data.ways);
+			B.Util.arrayMerge(this._relations, data.relations);
+		}
+	},
+	get: function (feature) {
+		// TODO: atm, this gets everything with the key highway. We should be 
+		// checking for highway values that correspond to roads
+		var features = [];
+
+
+		switch (feature) {
+		case 'roads':
+			var roadValues = ['motorway', 'motorway_link', 'trunk', 'trunk_link',
+				'primary', 'primary_link', 'secondary', 'secondary_link', 'tertiary',
+				'tertiary_link', 'residential', 'unclassified', 'service', 'track'];
+			for (var wayid in this._ways) {
+				if (!this._ways[wayid].tags) {
+					continue;
+				}
+
+				if (roadValues.indexOf(this._ways[wayid].tags.highway) > -1) { // If roadValues contains tagVal
+					var way = this._ways[wayid];
+					features.push(way);
+				}
+			}
+			break;
+		}
+
+		return features;
+	},
+	getNode: function (nodeId) {
+		return this._nodes[nodeId];
+	},
+	getWay: function (wayId) {
+		return this._ways[wayId];
+	},
+	getRelation: function (relId) {
+		return this._relations[relId];
+	}
+
+});
+
+B.osmdata = function (id, options) {
+	return new B.OSMDataContainer(id, options);
 };
 
 }(window, document));

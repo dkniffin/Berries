@@ -27,13 +27,18 @@ var deps = {
 	Light: {
 		src: ['objects/Light.js'],
 		desc: 'A light source to render in the scene.' 
-	}
-/*
+	},
+	
+	Road: {
+		src: ['objects/Road.js'],
+		desc: 'A road.'
+	},
+
 	OSMDataContainer: {
 		src: ['osmDataContainer/OSMDataContainer.js'],
-		desc: 'A class to read in OSM data in JSON format, and output various types of data (eg: roads, buildings, etc).' 
+		desc: 'A class to read in OSM data in JSON format, and output various types of data (eg: roads, buildings, etc).',
+		deps: ['Road']
 	}
-	*/
 };
 
 if (typeof exports !== 'undefined') {
