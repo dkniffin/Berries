@@ -61,18 +61,20 @@ B.Model = B.Class.extend({
 		var camera = this._camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 20000);
 
 		// First person controls
-		this._controls = new THREE.FirstPersonControls(camera);
-		this._controls.movementSpeed = 3000;
-		this._controls.lookSpeed = 0.1;
+		//this._controls = new THREE.FirstPersonControls(camera);
+		//this._controls.movementSpeed = 3000;
+		//this._controls.lookSpeed = 0.1;
 
 		// Position the camera
-		camera.position.x = -3750;
-		camera.position.y = 3750;
-		camera.position.z = 3000;
-		
+		camera.position.x = 2000;
+		camera.position.y = 5000;
+		camera.position.z = 7065;
+		// Look at the center of campus
+		camera.lookAt(new THREE.Vector3(4311, 1640, 7065));
+
 	},
 	_render: function () {
-		this._controls.update(this._clock.getDelta()); // Update the controls based on a clock
+		//this._controls.update(this._clock.getDelta()); // Update the controls based on a clock
 		this._renderer.render(this._scene, this._camera); // render the scene
 	}
 
