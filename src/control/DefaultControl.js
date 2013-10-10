@@ -64,16 +64,16 @@ B.DefaultControl = B.Class.extend({
 		this._camera.position.y = this.options.maxZoomOutHeight;
 	},
 	pannorth: function () {
-		this._camera.position.z += this.options.panIncrement;
-	},
-	pansouth: function () {
-		this._camera.position.z -= this.options.panIncrement;
-	},
-	paneast: function () {
 		this._camera.position.x += this.options.panIncrement;
 	},
-	panwest: function () {
+	pansouth: function () {
 		this._camera.position.x -= this.options.panIncrement;
+	},
+	paneast: function () {
+		this._camera.position.z += this.options.panIncrement;
+	},
+	panwest: function () {
+		this._camera.position.z -= this.options.panIncrement;
 	},
 	pitchup: function () { },
 	pitchdown: function () { },
