@@ -4,6 +4,7 @@ var deps = {
 		      'core/Util.js',
 		      'core/Class.js',
 		      'core/Browser.js',
+		      'core/Logger.js',
 		      'geometry/Point.js',
 		      'geometry/Transformation.js',
 		      'dom/DomUtil.js',
