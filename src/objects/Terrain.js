@@ -312,10 +312,6 @@ B.Terrain = B.Class.extend({
 				Vindex++;
 			}
 		}
-
-		
-
-		console.log(this._mesh);
 	},
 	_findClosestPoint: function (x, y, points) {
 		// Find the closest point to x,y in the given set of points

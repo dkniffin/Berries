@@ -72,32 +72,8 @@ B.Model = B.Class.extend({
 		//this._controls.movementSpeed = 3000;
 		//this._controls.lookSpeed = 0.1;
 
-		var controls2 = new B.DefaultControl(camera);
-		console.log(controls2);
+		this._controls = new B.DefaultControl(camera);
 
-		// Trackball controls
-		var controls = this._controls = new THREE.TrackballControls(camera);
-		controls.rotateSpeed = 1.0;
-		controls.zoomSpeed = 1.2;
-		controls.panSpeed = 0.8;
-
-		controls.noZoom = false;
-		controls.noPan = false;
-		controls.noRoll = true;
-
-		controls.minDistance = 20;
-
-		controls.staticMoving = true;
-		controls.dynamicDampingFactor = 0.3;
-
-		controls.keys = [65, 83, 68];
-
-		var self = this;
-		controls.addEventListener('change', function () {
-			self._renderer.render(self._scene, self._camera);
-		});
-
-		
 
 	},
 	_render: function () {
@@ -108,7 +84,7 @@ B.Model = B.Class.extend({
 		var self = this;
 		var animateFunc = function () {
 			window.requestAnimationFrame(animateFunc);
-			self._controls.update();
+			self._renderer.render(self._scene, self._camera);
 		};
 
 		animateFunc();

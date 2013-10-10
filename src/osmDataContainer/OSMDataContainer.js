@@ -36,7 +36,6 @@ B.OSMDataContainer = B.Class.extend({
 			}
 		}
 		//model.addObject();
-		console.log(model);
 	},
 	addData: function (data) {
 
