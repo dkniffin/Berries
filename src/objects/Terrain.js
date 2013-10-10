@@ -19,8 +19,6 @@ B.Terrain = B.Class.extend({
 	_bounds: new B.LatLngBounds(),
 	_eleBounds: {},
 
-
-	_count: 0,
 	options: {
 		gridSpace: 100, // In meters
 		dataType: 'SRTM_vector'
@@ -41,6 +39,7 @@ B.Terrain = B.Class.extend({
 		this._geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
 
 		this._updateGeometry();
+		this._createMesh();
 
 		this._mesh.translateX(this._dataWidthInMeters / 2);
 		this._mesh.translateZ(this._dataDepthInMeters / 2);
@@ -115,8 +114,6 @@ B.Terrain = B.Class.extend({
 
 		// Simply estimate the value from an average of the four surrounding points
 		ele = (v1 + v2 + v3 + v4) / 4;
-		this._count++;
-		//console.log(this._count);
 
 		return ele;
 	},
@@ -125,7 +122,6 @@ B.Terrain = B.Class.extend({
 		var xym = this._latlon2meters(lat, lon);
 
 		var ele = this.heightAt(lat, lon, xym);
-		console.log(ele);
 
 		return new THREE.Vector3(xym.x, ele, xym.y);
 	},
@@ -195,28 +191,6 @@ B.Terrain = B.Class.extend({
 		this._numDepthGridPts = this._customRound(
 			depthInMeters / this.options.gridSpace,
 			'nearest', 2);
-
-	},
-	_customRound: function (value, mode, multiple) {
-		// TODO: Move this out of Terrain.js
-		// Rounds the value to the multiple, using the given mode
-		// ie: round 5 up to a mupltiple of 10 (10)
-		// or: round 36 down to a multiple of 5 (35)
-		// or: round 44 to the nearest multiple of 3 (45)
-		switch (mode) {
-		case 'nearest':
-			var nearest;
-			if ((value % multiple) >= multiple / 2) {
-				nearest = parseInt(value / multiple, 10) * multiple + multiple;
-			} else {
-				nearest = parseInt(value / multiple, 10) * multiple;
-			}
-			return nearest;
-		case 'down':
-			return (multiple * Math.floor(value / multiple));
-		case 'up':
-			return (multiple * Math.ceil(value / multiple));
-		}
 	},
 	_updateGeometry: function () {
 		var inData = this._data.nodes;
@@ -339,10 +313,7 @@ B.Terrain = B.Class.extend({
 			}
 		}
 
-		this._mesh = new THREE.Mesh(this._geometry, new THREE.MeshBasicMaterial({
-			//map: THREE.ImageUtils.loadTexture('lib/textures/seamless-dirt.jpg')
-			color: 0x0000ff
-		}));
+		
 
 		console.log(this._mesh);
 	},
@@ -367,6 +338,39 @@ B.Terrain = B.Class.extend({
 			}
 		}
 		return closest;
+	},
+	_createMesh: function () {
+		var texture = THREE.ImageUtils.loadTexture(B.Util.getTexturePath() + '/dirt3.jpg');
+		var widthOfTexture = 10; // meters
+		var heightOfTexture = 10; // meters
+		texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+		texture.repeat.set(Math.round(this._dataDepthInMeters / heightOfTexture),
+				Math.round(this._dataWidthInMeters / widthOfTexture));
+		this._mesh = new THREE.Mesh(this._geometry, new THREE.MeshBasicMaterial({
+			map: texture
+			//color: 0x0000ff
+		}));
+	},
+	_customRound: function (value, mode, multiple) {
+		// TODO: Move this out of Terrain.js
+		// Rounds the value to the multiple, using the given mode
+		// ie: round 5 up to a mupltiple of 10 (10)
+		// or: round 36 down to a multiple of 5 (35)
+		// or: round 44 to the nearest multiple of 3 (45)
+		switch (mode) {
+		case 'nearest':
+			var nearest;
+			if ((value % multiple) >= multiple / 2) {
+				nearest = parseInt(value / multiple, 10) * multiple + multiple;
+			} else {
+				nearest = parseInt(value / multiple, 10) * multiple;
+			}
+			return nearest;
+		case 'down':
+			return (multiple * Math.floor(value / multiple));
+		case 'up':
+			return (multiple * Math.ceil(value / multiple));
+		}
 	},
 	_distance: function (x1, y1, x2, y2) {
 		// Distance formula

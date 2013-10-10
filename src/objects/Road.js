@@ -36,6 +36,7 @@ B.Road = B.Class.extend({
 			new THREE.Vector2(-1, 0),
 	    ];
 	    var roadshape = new THREE.Shape(roadpoints);
+	    //roadshape.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
 
 
 	    var splinepoints = [];

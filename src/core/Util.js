@@ -141,19 +141,19 @@ B.Util = {
 
 	getTexturePath: function () {
 		var scripts = document.getElementsByTagName('script'),
-	  	berriesRe = /[\/^]berries[\-\._]?([\w\-\._]*)\.js\??/; 
+		berriesRe = /[\/^]berries[\-\._]?([\w\-\._]*)\.js\??/;
 
 		var i, len, src, matches, path;
-	  	for (i = 0, len = scripts.length; i < len; i++) {
-		  	src = scripts[i].src;
-		  	matches = src.match(berriesRe);
+		for (i = 0, len = scripts.length; i < len; i++) {
+			src = scripts[i].src;
+			matches = src.match(berriesRe);
 
 			if (matches) {
-			  	path = src.split(berriesRe)[0];
-			  	return (path ? path + '/' : '') + 'textures';
-		  	}
+				path = src.split(berriesRe)[0];
+				return (path ? path + '/' : '') + 'textures';
+			}
 		}
-  	},
+	},
 
 	emptyImageUrl: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='
 };

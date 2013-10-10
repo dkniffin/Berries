@@ -160,7 +160,7 @@ exports.build = function (compsBase32, buildName) {
 
 	var rsync = new Rsync()
 	.flags('az')
-	.source('src/textures')
+	.source('src/textures/')
 	.destination('dest/textures');
 
 	rsync.execute();

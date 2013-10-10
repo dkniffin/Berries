@@ -69,6 +69,7 @@ B.Model = B.Class.extend({
 		camera.position.x = -3750;
 		camera.position.y = 3750;
 		camera.position.z = 3000;
+		
 	},
 	_render: function () {
 		this._controls.update(this._clock.getDelta()); // Update the controls based on a clock
