@@ -60,7 +60,7 @@ B.Util = {
 
 	stamp: (function () {
 		var lastId = 0,
-		    key = '_leaflet_id';
+		    key = '_berries_id';
 		return function (obj) {
 			obj[key] = obj[key] || ++lastId;
 			return obj[key];
@@ -356,6 +356,104 @@ B.Class.addInitHook = function (fn) { // (Function) || (String, args...)
 	this.prototype._initHooks = this.prototype._initHooks || [];
 	this.prototype._initHooks.push(init);
 };
+
+/*
+ * B.Browser handles different browser and feature detections for internal Leaflet use.
+ */
+
+(function () {
+
+	var ie = !!window.ActiveXObject,
+	    ie6 = ie && !window.XMLHttpRequest,
+	    ie7 = ie && !document.querySelector,
+		ielt9 = ie && !document.addEventListener,
+
+	    // terrible browser detection to work around Safari / iOS / Android browser bugs
+	    ua = navigator.userAgent.toLowerCase(),
+	    webkit = ua.indexOf('webkit') !== -1,
+	    chrome = ua.indexOf('chrome') !== -1,
+	    phantomjs = ua.indexOf('phantom') !== -1,
+	    android = ua.indexOf('android') !== -1,
+	    android23 = ua.search('android [23]') !== -1,
+
+	    mobile = typeof orientation !== undefined + '',
+	    msTouch = window.navigator && window.navigator.msPointerEnabled &&
+	              window.navigator.msMaxTouchPoints,
+	    retina = ('devicePixelRatio' in window && window.devicePixelRatio > 1) ||
+	             ('matchMedia' in window && window.matchMedia('(min-resolution:144dpi)') &&
+	              window.matchMedia('(min-resolution:144dpi)').matches),
+
+	    doc = document.documentElement,
+	    ie3d = ie && ('transition' in doc.style),
+	    webkit3d = ('WebKitCSSMatrix' in window) && ('m11' in new window.WebKitCSSMatrix()),
+	    gecko3d = 'MozPerspective' in doc.style,
+	    opera3d = 'OTransition' in doc.style,
+	    any3d = !window.L_DISABLE_3D && (ie3d || webkit3d || gecko3d || opera3d) && !phantomjs;
+
+
+	// PhantomJS has 'ontouchstart' in document.documentElement, but doesn't actually support touch.
+	// https://github.com/Leaflet/Leaflet/pull/1434#issuecomment-13843151
+
+	var touch = !window.L_NO_TOUCH && !phantomjs && (function () {
+
+		var startName = 'ontouchstart';
+
+		// IE10+ (We simulate these into touch* events in B.DomEvent and B.DomEvent.MsTouch) or WebKit, etc.
+		if (msTouch || (startName in doc)) {
+			return true;
+		}
+
+		// Firefox/Gecko
+		var div = document.createElement('div'),
+		    supported = false;
+
+		if (!div.setAttribute) {
+			return false;
+		}
+		div.setAttribute(startName, 'return;');
+
+		if (typeof div[startName] === 'function') {
+			supported = true;
+		}
+
+		div.removeAttribute(startName);
+		div = null;
+
+		return supported;
+	}());
+
+
+	B.Browser = {
+		ie: ie,
+		ie6: ie6,
+		ie7: ie7,
+		ielt9: ielt9,
+		webkit: webkit,
+
+		android: android,
+		android23: android23,
+
+		chrome: chrome,
+
+		ie3d: ie3d,
+		webkit3d: webkit3d,
+		gecko3d: gecko3d,
+		opera3d: opera3d,
+		any3d: any3d,
+
+		mobile: mobile,
+		mobileWebkit: mobile && webkit,
+		mobileWebkit3d: mobile && webkit3d,
+		mobileOpera: mobile && window.opera,
+
+		touch: touch,
+		msTouch: msTouch,
+
+		retina: retina
+	};
+
+}());
+
 
 /*
  * B.Point represents a point with x and y coordinates.
@@ -784,6 +882,259 @@ B.DomUtil.TRANSITION_END =
 })();
 
 /*
+ * B.DomEvent contains functions for working with DOM events.
+ */
+
+B.DomEvent = {
+	/* inspired by John Resig, Dean Edwards and YUI addEvent implementations */
+	addListener: function (obj, type, fn, context) { // (HTMLElement, String, Function[, Object])
+
+		var id = B.stamp(fn),
+		    key = '_berries_' + type + id,
+		    handler, originalHandler, newType;
+
+		if (obj[key]) { return this; }
+
+		handler = function (e) {
+			return fn.call(context || obj, e || B.DomEvent._getEvent());
+		};
+
+		if (B.Browser.msTouch && type.indexOf('touch') === 0) {
+			return this.addMsTouchListener(obj, type, handler, id);
+		}
+		if (B.Browser.touch && (type === 'dblclick') && this.addDoubleTapListener) {
+			this.addDoubleTapListener(obj, handler, id);
+		}
+
+		if ('addEventListener' in obj) {
+
+			if (type === 'mousewheel') {
+				obj.addEventListener('DOMMouseScroll', handler, false);
+				obj.addEventListener(type, handler, false);
+
+			} else if ((type === 'mouseenter') || (type === 'mouseleave')) {
+
+				originalHandler = handler;
+				newType = (type === 'mouseenter' ? 'mouseover' : 'mouseout');
+
+				handler = function (e) {
+					if (!B.DomEvent._checkMouse(obj, e)) { return; }
+					return originalHandler(e);
+				};
+
+				obj.addEventListener(newType, handler, false);
+
+			} else if (type === 'click' && B.Browser.android) {
+				originalHandler = handler;
+				handler = function (e) {
+					return B.DomEvent._filterClick(e, originalHandler);
+				};
+
+				obj.addEventListener(type, handler, false);
+			} else {
+				obj.addEventListener(type, handler, false);
+			}
+
+		} else if ('attachEvent' in obj) {
+			obj.attachEvent('on' + type, handler);
+		}
+
+		obj[key] = handler;
+
+		return this;
+	},
+
+	removeListener: function (obj, type, fn) {  // (HTMLElement, String, Function)
+
+		var id = B.stamp(fn),
+		    key = '_berries_' + type + id,
+		    handler = obj[key];
+
+		if (!handler) { return this; }
+
+		if (B.Browser.msTouch && type.indexOf('touch') === 0) {
+			this.removeMsTouchListener(obj, type, id);
+		} else if (B.Browser.touch && (type === 'dblclick') && this.removeDoubleTapListener) {
+			this.removeDoubleTapListener(obj, id);
+
+		} else if ('removeEventListener' in obj) {
+
+			if (type === 'mousewheel') {
+				obj.removeEventListener('DOMMouseScroll', handler, false);
+				obj.removeEventListener(type, handler, false);
+
+			} else if ((type === 'mouseenter') || (type === 'mouseleave')) {
+				obj.removeEventListener((type === 'mouseenter' ? 'mouseover' : 'mouseout'), handler, false);
+			} else {
+				obj.removeEventListener(type, handler, false);
+			}
+		} else if ('detachEvent' in obj) {
+			obj.detachEvent('on' + type, handler);
+		}
+
+		obj[key] = null;
+
+		return this;
+	},
+
+	stopPropagation: function (e) {
+
+		if (e.stopPropagation) {
+			e.stopPropagation();
+		} else {
+			e.cancelBubble = true;
+		}
+		B.DomEvent._skipped(e);
+
+		return this;
+	},
+
+	disableClickPropagation: function (el) {
+		var stop = B.DomEvent.stopPropagation;
+
+		for (var i = B.Draggable.START.length - 1; i >= 0; i--) {
+			B.DomEvent.addListener(el, B.Draggable.START[i], stop);
+		}
+
+		return B.DomEvent
+			.addListener(el, 'click', B.DomEvent._fakeStop)
+			.addListener(el, 'dblclick', stop);
+	},
+
+	preventDefault: function (e) {
+
+		if (e.preventDefault) {
+			e.preventDefault();
+		} else {
+			e.returnValue = false;
+		}
+		return this;
+	},
+
+	stop: function (e) {
+		return B.DomEvent
+			.preventDefault(e)
+			.stopPropagation(e);
+	},
+
+	getMousePosition: function (e, container) {
+
+		var ie7 = B.Browser.ie7,
+		    body = document.body,
+		    docEl = document.documentElement,
+		    x = e.pageX ? e.pageX - body.scrollLeft - docEl.scrollLeft: e.clientX,
+		    y = e.pageY ? e.pageY - body.scrollTop - docEl.scrollTop: e.clientY,
+		    pos = new B.Point(x, y);
+
+		if (!container) {
+			return pos;
+		}
+
+		var rect = container.getBoundingClientRect(),
+		    left = rect.left - container.clientLeft,
+		    top = rect.top - container.clientTop;
+
+		// webkit (and ie <= 7) handles RTL scrollLeft different to everyone else
+		// https://code.google.com/p/closure-library/source/browse/trunk/closure/goog/style/bidi.js
+		if (!B.DomUtil.documentIsLtr() && (B.Browser.webkit || ie7)) {
+			left += container.scrollWidth - container.clientWidth;
+
+			// ie7 shows the scrollbar by default and provides clientWidth counting it, so we
+			// need to add it back in if it is visible; scrollbar is on the left as we are RTL
+			if (ie7 && B.DomUtil.getStyle(container, 'overflow-y') !== 'hidden' &&
+			           B.DomUtil.getStyle(container, 'overflow') !== 'hidden') {
+				left += 17;
+			}
+		}
+
+		return pos._subtract(new B.Point(left, top));
+	},
+
+	getWheelDelta: function (e) {
+
+		var delta = 0;
+
+		if (e.wheelDelta) {
+			delta = e.wheelDelta / 120;
+		}
+		if (e.detail) {
+			delta = -e.detail / 3;
+		}
+		return delta;
+	},
+
+	_skipEvents: {},
+
+	_fakeStop: function (e) {
+		// fakes stopPropagation by setting a special event flag, checked/reset with B.DomEvent._skipped(e)
+		B.DomEvent._skipEvents[e.type] = true;
+	},
+
+	_skipped: function (e) {
+		var skipped = this._skipEvents[e.type];
+		// reset when checking, as it's only used in map container and propagates outside of the map
+		this._skipEvents[e.type] = false;
+		return skipped;
+	},
+
+	// check if element really left/entered the event target (for mouseenter/mouseleave)
+	_checkMouse: function (el, e) {
+
+		var related = e.relatedTarget;
+
+		if (!related) { return true; }
+
+		try {
+			while (related && (related !== el)) {
+				related = related.parentNode;
+			}
+		} catch (err) {
+			return false;
+		}
+		return (related !== el);
+	},
+
+	_getEvent: function () { // evil magic for IE
+		/*jshint noarg:false */
+		var e = window.event;
+		if (!e) {
+			var caller = arguments.callee.caller;
+			while (caller) {
+				e = caller['arguments'][0];
+				if (e && window.Event === e.constructor) {
+					break;
+				}
+				caller = caller.caller;
+			}
+		}
+		return e;
+	},
+
+	// this is a horrible workaround for a bug in Android where a single touch triggers two click events
+	_filterClick: function (e, handler) {
+		var timeStamp = (e.timeStamp || e.originalEvent.timeStamp),
+			elapsed = B.DomEvent._lastClick && (timeStamp - B.DomEvent._lastClick);
+
+		// are they closer together than 1000ms yet more than 100ms?
+		// Android typically triggers them ~300ms apart while multiple listeners
+		// on the same event should be triggered far faster;
+		// or check if click is simulated on the element, and if it is, reject any non-simulated events
+
+		if ((elapsed && elapsed > 100 && elapsed < 1000) || (e.target._simulatedClick && !e._simulated)) {
+			B.DomEvent.stop(e);
+			return;
+		}
+		B.DomEvent._lastClick = timeStamp;
+
+		return handler(e);
+	}
+};
+
+B.DomEvent.on = B.DomEvent.addListener;
+B.DomEvent.off = B.DomEvent.removeListener;
+
+
+/*
  * B.LatLng represents a geographical point with latitude and longitude coordinates.
  */
 
@@ -1159,6 +1510,131 @@ B.CRS.EPSG4326 = B.extend({}, B.CRS, {
 });
 
 
+B.DefaultControl = B.Class.extend({
+
+	_enabled: true,
+	_camera: {},
+	_domElement: document,
+
+	_STATE: {NONE: -1, ZOOMUP: 0, ZOOMDOWN: 1, ZOOMMIN: 2, ZOOMMAX: 3,
+		PANNORTH: 4, PANSOUTH: 5, PANEAST: 6, PANWEST: 7, PITCHUP: 8,
+		PITCHDOWN: 9 },
+	_state: -1, // Current state
+	_prevState: -1, // Previous state
+
+	options: {
+		minCamHeight: 0,
+		maxCamHeight: Infinity,
+		keys: [33, 34, 35, 36, 38, 40, 39, 37, 38, 40]
+	},
+	initialize: function (camera, domElement) {
+		this._camera = camera;
+		if (domElement !== undefined) {
+			this._domElement = domElement;
+		}
+
+		/* Mouse */
+		// Disable default right click functionality
+		B.DomEvent.on(this._domElement, 'contextmenu', B.DomEvent.preventDefault, this);
+		// Mouse clicks
+		B.DomEvent.on(this._domElement, 'mousedown', this._mousedown, this);
+		// Mouse scroll
+		B.DomEvent.on(this._domElement, 'mousewheel', this._mousewheel, this);
+		B.DomEvent.on(this._domElement, 'DOMMouseScroll', this._mousewheel, this); // firefox
+		/* Keyboard */
+		// Keyboard button presses
+		B.DomEvent.on(window, 'keydown', this._keydown, this);
+		B.DomEvent.on(window, 'keyup', this._keyup, this);
+
+		/* Touch */
+		B.DomEvent.on(this._domElement, 'touchstart', this._touchstart, this);
+		B.DomEvent.on(this._domElement, 'touchend', this._touchend, this);
+		B.DomEvent.on(this._domElement, 'touchmove', this._touchmove, this);
+	},
+	_keydown: function (event) {
+		if (this._enabled === false) { return; }
+		//window.removeEventListener('keydown', this._keydown);
+		this._prevState = this._state;
+
+		if (this._state !== this._STATE.NONE) {
+			return;
+		} else if (event.ctrlKey === true) {
+			switch (event.keyCode) {
+			case this.options.keys[this._STATE.PITCHUP]:
+				console.log('pitchup');
+				break;
+			case this.options.keys[this._STATE.PITCHDOWN]:
+				console.log('pitchdown');
+				break;
+			default:
+				break;
+			}
+		} else {
+			B.DomEvent.off(window, 'keydown', this._keydown);
+			switch (event.keyCode) {
+			case this.options.keys[this._STATE.ZOOMUP]:
+				console.log('zoomup');
+				break;
+			case this.options.keys[this._STATE.ZOOMDOWN]:
+				console.log('zoomdown');
+				break;
+			case this.options.keys[this._STATE.ZOOMMIN]:
+				console.log('zoommin');
+				break;
+			case this.options.keys[this._STATE.ZOOMMAX]:
+				console.log('zoommax');
+				break;
+			case this.options.keys[this._STATE.PANNORTH]:
+				console.log('pannorth');
+				break;
+			case this.options.keys[this._STATE.PANSOUTH]:
+				console.log('pansouth');
+				break;
+			case this.options.keys[this._STATE.PANEAST]:
+				console.log('paneast');
+				break;
+			case this.options.keys[this._STATE.PANWEST]:
+				console.log('panwest');
+				break;
+			default:
+				return;
+			}
+		}
+	},
+	_keyup: function () {
+	//_keyup: function (event) {
+		if (this._enabled === false) { return; }
+		this._state = this._prevState;
+		B.DomEvent.on(window, 'keydown', this._keydown, this);
+
+	},
+	_mousedown: function (event) {
+		if (this._enabled === false) { return; }
+		console.log(event);
+
+	},
+	_mousewheel: function (event) {
+		if (this._enabled === false) { return; }
+		console.log(event);
+
+	},
+	_touchstart: function (event) {
+		if (this._enabled === false) { return; }
+		console.log(event);
+
+	},
+	_touchend: function (event) {
+		if (this._enabled === false) { return; }
+		console.log(event);
+
+	},
+	_touchmove: function (event) {
+		if (this._enabled === false) { return; }
+		console.log(event);
+
+	}
+});
+
 /*
  * B.model is the equivalent of L.map. It initializes a model to add data to.
  */
@@ -1233,6 +1709,9 @@ B.Model = B.Class.extend({
 		//this._controls.movementSpeed = 3000;
 		//this._controls.lookSpeed = 0.1;
 
+		var controls2 = new B.DefaultControl(camera);
+		console.log(controls2);
+
 		// Trackball controls
 		var controls = this._controls = new THREE.TrackballControls(camera);
 		controls.rotateSpeed = 1.0;
@@ -1241,6 +1720,9 @@ B.Model = B.Class.extend({
 
 		controls.noZoom = false;
 		controls.noPan = false;
+		controls.noRoll = true;
+
+		controls.minDistance = 20;
 
 		controls.staticMoving = true;
 		controls.dynamicDampingFactor = 0.3;
@@ -1267,13 +1749,7 @@ B.Model = B.Class.extend({
 		};
 
 		animateFunc();
-	},
-	_animate: function () {
-		console.log('blah');
-		window.requestAnimationFrame(this._animate);
-		this._controls.update();
 	}
-
 });
 
 B.model = function (id, options) {

@@ -28,7 +28,7 @@ B.Util = {
 
 	stamp: (function () {
 		var lastId = 0,
-		    key = '_leaflet_id';
+		    key = '_berries_id';
 		return function (obj) {
 			obj[key] = obj[key] || ++lastId;
 			return obj[key];
