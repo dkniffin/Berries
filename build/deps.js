@@ -38,10 +38,15 @@ var deps = {
 		desc: 'A road.'
 	},
 
+	Building: {
+		src: ['objects/Building.js'],
+		desc: 'A road.'
+	},
+
 	OSMDataContainer: {
 		src: ['osmDataContainer/OSMDataContainer.js'],
 		desc: 'A class to read in OSM data in JSON format, and output various types of data (eg: roads, buildings, etc).',
-		deps: ['Road']
+		deps: ['Road', 'Building']
 	}
 };
 

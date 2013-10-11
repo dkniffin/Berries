@@ -8,7 +8,7 @@ B.OSMDataContainer = B.Class.extend({
 	_ways: [],
 	_relations: [],
 	options: {
-		render: ['roads'],
+		render: ['roads', 'buildings'],
 	},
 	initialize: function (data, options) {
 		options = B.setOptions(this, options);
@@ -21,18 +21,26 @@ B.OSMDataContainer = B.Class.extend({
 		for (var i in this.options.render) {
 			var feature = this.options.render[i];
 
+			var nodes, way;
 			switch (feature) {
 			case 'roads':
 				var roads = this.get('roads');
 				for (var roadI in roads) {
-					var way = roads[roadI];
-					var nodes = [];
-					for (var j in way.nodes) {
-						var nodeId = way.nodes[j];
-						nodes[nodeId] = this._nodes[nodeId];
-					}
+					way = roads[roadI];
+					nodes = this.getNodesForWay(way);
+					
 					new B.Road(way, nodes).addTo(model);
 				}
+				break;
+			case 'buildings':
+				var buildings = this.get('buildings');
+				for (var bId in buildings) {
+					way = buildings[bId];
+					nodes = this.getNodesForWay(way);
+
+					new B.Building(way, nodes).addTo(model);
+				}
+				break;
 			}
 		}
 		//model.addObject();
@@ -58,27 +66,48 @@ B.OSMDataContainer = B.Class.extend({
 		// TODO: atm, this gets everything with the key highway. We should be 
 		// checking for highway values that correspond to roads
 		var features = [];
-
+		var wayid, way;
 
 		switch (feature) {
 		case 'roads':
 			var roadValues = ['motorway', 'motorway_link', 'trunk', 'trunk_link',
 				'primary', 'primary_link', 'secondary', 'secondary_link', 'tertiary',
 				'tertiary_link', 'residential', 'unclassified', 'service', 'track'];
-			for (var wayid in this._ways) {
+			for (wayid in this._ways) {
 				if (!this._ways[wayid].tags) {
 					continue;
 				}
 
 				if (roadValues.indexOf(this._ways[wayid].tags.highway) > -1) { // If roadValues contains tagVal
-					var way = this._ways[wayid];
+					way = this._ways[wayid];
 					features.push(way);
 				}
 			}
 			break;
+		case 'buildings':
+			// TODO: Add relations
+			for (wayid in this._ways) {
+				if (!this._ways[wayid].tags) {
+					continue;
+				}
+
+				var building = this._ways[wayid].tags.building;
+				if (building && building !== 'no') {
+					way = this._ways[wayid];
+					features.push(way);
+				}
+			}
 		}
 
 		return features;
+	},
+	getNodesForWay: function (way) {
+		var nodes = [];
+		for (var j in way.nodes) {
+			var nodeId = way.nodes[j];
+			nodes[nodeId] = this._nodes[nodeId];
+		}
+		return nodes;
 	},
 	getNode: function (nodeId) {
 		return this._nodes[nodeId];

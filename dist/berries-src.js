@@ -2346,6 +2346,81 @@ B.road = function (id, options) {
 };
 
 
+/*
+ * B.Road is a class for drawing a road
+ */
+
+B.Building = B.Class.extend({
+
+	_height: 0,
+	_way: {},
+	_nodes: {},
+	options: {
+		floors: 2,
+		floorHeight: 3.048 // meters
+	},
+	initialize: function (way, nodes, options) {
+		options = B.setOptions(this, options);
+
+		this._way = way;
+		this._nodes = nodes;
+
+		// TODO: Base this on tags, if available
+		this._height = this.options.floors * this.options.floorHeight;
+
+	},
+	addTo: function (model) {
+		var outlinePoints = [];
+		var vec;
+		var lat, lon;
+		for (var i in this._nodes) {
+			lat = Number(this._nodes[i].lat);
+			lon = Number(this._nodes[i].lon);
+			vec = model.getTerrain().worldVector(lat, lon);
+			vec.y += 1;
+			outlinePoints.push(vec);
+		}
+		// Add the first point again, to make the object closed
+		outlinePoints.push(outlinePoints[0]);
+
+		/*
+		var buildingOutline = new THREE.Shape(outlinePoints);
+
+		
+		// TODO: Change this to use a centerpoint
+		var groundPoint = outlinePoints[0];
+		var buildingTopPoint = new THREE.Vector3(groundPoint.x, groundPoint.y + this._height, groundPoint.z);
+
+		var vertical = new THREE.SplineCurve3([groundPoint, buildingTopPoint]);
+
+		var geometry = new THREE.ExtrudeGeometry(buildingOutline, {extrudePath: vertical });
+
+		// TODO: Use textures
+		var mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+			color: 0xff0000
+		}));
+		model.addObject(mesh);
+		*/
+		
+		
+		var geometry = new THREE.Geometry();
+		geometry.vertices = outlinePoints;
+
+		var line = new THREE.Line(geometry, new THREE.LineBasicMaterial({
+			color: 0xff0000
+		}));
+
+		model.addObject(line);
+		
+		return this;
+	}
+});
+
+B.building = function (id, options) {
+	return new B.Building(id, options);
+};
+
+
 /* 
  * B.OSMDataContainer is reads in OSM data in JSON format, and allows 
  * access to various data (eg: roads, buildings, etc)
@@ -2356,7 +2431,7 @@ B.OSMDataContainer = B.Class.extend({
 	_ways: [],
 	_relations: [],
 	options: {
-		render: ['roads'],
+		render: ['roads', 'buildings'],
 	},
 	initialize: function (data, options) {
 		options = B.setOptions(this, options);
@@ -2369,18 +2444,26 @@ B.OSMDataContainer = B.Class.extend({
 		for (var i in this.options.render) {
 			var feature = this.options.render[i];
 
+			var nodes, way;
 			switch (feature) {
 			case 'roads':
 				var roads = this.get('roads');
 				for (var roadI in roads) {
-					var way = roads[roadI];
-					var nodes = [];
-					for (var j in way.nodes) {
-						var nodeId = way.nodes[j];
-						nodes[nodeId] = this._nodes[nodeId];
-					}
+					way = roads[roadI];
+					nodes = this.getNodesForWay(way);
+					
 					new B.Road(way, nodes).addTo(model);
 				}
+				break;
+			case 'buildings':
+				var buildings = this.get('buildings');
+				for (var bId in buildings) {
+					way = buildings[bId];
+					nodes = this.getNodesForWay(way);
+
+					new B.Building(way, nodes).addTo(model);
+				}
+				break;
 			}
 		}
 		//model.addObject();
@@ -2406,27 +2489,48 @@ B.OSMDataContainer = B.Class.extend({
 		// TODO: atm, this gets everything with the key highway. We should be 
 		// checking for highway values that correspond to roads
 		var features = [];
-
+		var wayid, way;
 
 		switch (feature) {
 		case 'roads':
 			var roadValues = ['motorway', 'motorway_link', 'trunk', 'trunk_link',
 				'primary', 'primary_link', 'secondary', 'secondary_link', 'tertiary',
 				'tertiary_link', 'residential', 'unclassified', 'service', 'track'];
-			for (var wayid in this._ways) {
+			for (wayid in this._ways) {
 				if (!this._ways[wayid].tags) {
 					continue;
 				}
 
 				if (roadValues.indexOf(this._ways[wayid].tags.highway) > -1) { // If roadValues contains tagVal
-					var way = this._ways[wayid];
+					way = this._ways[wayid];
 					features.push(way);
 				}
 			}
 			break;
+		case 'buildings':
+			// TODO: Add relations
+			for (wayid in this._ways) {
+				if (!this._ways[wayid].tags) {
+					continue;
+				}
+
+				var building = this._ways[wayid].tags.building;
+				if (building && building !== 'no') {
+					way = this._ways[wayid];
+					features.push(way);
+				}
+			}
 		}
 
 		return features;
+	},
+	getNodesForWay: function (way) {
+		var nodes = [];
+		for (var j in way.nodes) {
+			var nodeId = way.nodes[j];
+			nodes[nodeId] = this._nodes[nodeId];
+		}
+		return nodes;
 	},
 	getNode: function (nodeId) {
 		return this._nodes[nodeId];
