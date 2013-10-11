@@ -4,15 +4,16 @@
 
 B.Road = B.Class.extend({
 
+	_osmDC: null,
 	options: {
 		lanes: 2,
 		laneWidth: 10 // meters
 	},
-	initialize: function (way, nodes, options) {
+	initialize: function (way, osmDC, options) {
 		options = B.setOptions(this, options);
 
 		this._way = way;
-		this._nodes = nodes;
+		this._osmDC = osmDC;
 
 	},
 	addTo: function (model) {
@@ -43,8 +44,9 @@ B.Road = B.Class.extend({
 	    // Create the road spline (the path it follows)
 		for (var i in this._way.nodes) {
 			var nodeId = this._way.nodes[i];
-			var lat = Number(this._nodes[nodeId].lat);
-			var lon = Number(this._nodes[nodeId].lon);
+			var node = this._osmDC.getNode(nodeId);
+			var lat = Number(node.lat);
+			var lon = Number(node.lon);
 			var wvector = model.getTerrain().worldVector(lat, lon);
 
 			wvector.y += thickness; // Add a meter, so it shows up above the surface

@@ -21,15 +21,14 @@ B.OSMDataContainer = B.Class.extend({
 		for (var i in this.options.render) {
 			var feature = this.options.render[i];
 
-			var nodes, way;
+			var way;
 			switch (feature) {
 			case 'roads':
 				var roads = this.get('roads');
 				for (var roadI in roads) {
 					way = roads[roadI];
-					nodes = this.getNodesForWay(way);
 					
-					new B.Road(way, nodes).addTo(model);
+					new B.Road(way, this).addTo(model);
 				}
 				break;
 			case 'buildings':
@@ -100,14 +99,6 @@ B.OSMDataContainer = B.Class.extend({
 		}
 
 		return features;
-	},
-	getNodesForWay: function (way) {
-		var nodes = [];
-		for (var j in way.nodes) {
-			var nodeId = way.nodes[j];
-			nodes[nodeId] = this._nodes[nodeId];
-		}
-		return nodes;
 	},
 	getNode: function (nodeId) {
 		return this._nodes[nodeId];
