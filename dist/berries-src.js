@@ -2283,22 +2283,61 @@ B.light = function (id, options) {
 B.Road = B.Class.extend({
 
 	_osmDC: null,
+	_way: null,
 	options: {
 		lanes: 2,
-		laneWidth: 10 // meters
+		laneWidth: 3.5 // meters
 	},
 	initialize: function (way, osmDC, options) {
 		options = B.setOptions(this, options);
 
 		this._way = way;
 		this._osmDC = osmDC;
-
 	},
 	addTo: function (model) {
+
+		// Do some logic to determine appropriate road width.
+		var width = this.options.lanes * this.options.laneWidth; // Default to input options
+		if (this._way.tags) {
+			var tags = this._way.tags;
+			if (tags.width) {
+				// If the width tag is defined, use that
+				width = tags.width;
+			} else {
+				// Otherwise, base the calculation on lanes
+				var numLanes = this.options.lanes; // Total for the whole road
+				if (tags.lanes) {
+					numLanes = tags.lanes;
+				} else if (tags.highway) {
+					switch (tags.highway) {
+					case 'motorway':
+					case 'trunk':
+					case 'primary':
+					case 'secondary':
+						numLanes = 4;
+						break;
+					case 'tertiary':
+					case 'residential':
+						numLanes = 2;
+						break;
+					case 'service':
+					case 'track':
+						numLanes = 1;
+						break;
+					}
+				}
+				var laneWidth = this.options.laneWidth;
+				// TODO: add logic to look for 'lane:widths' values
+				
+				// TODO: account for bicycle lanes, etc
+				width = numLanes * laneWidth;
+
+			}
+		}
+
 		// Create the cross section shape
 		// Credits go to bai (http://bai.dev.supcrit.com/scripts/engine/things/road.js)
 		var thickness = 0.25,
-	        width = this.options.lanes * this.options.laneWidth,
 	        thickscale = 4;
 	    var roadpoints = [
 			new THREE.Vector2(-1, 0),
@@ -2335,6 +2374,8 @@ B.Road = B.Class.extend({
 
 		var geometry = new THREE.ExtrudeGeometry(roadshape, {extrudePath: roadspline });
 
+
+		// TODO: base the mesh material on tags
 		var mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
 			color: 0x959393
 		}));
