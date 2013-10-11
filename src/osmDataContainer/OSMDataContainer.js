@@ -36,9 +36,9 @@ B.OSMDataContainer = B.Class.extend({
 				var buildings = this.get('buildings');
 				for (var bId in buildings) {
 					way = buildings[bId];
-					nodes = this.getNodesForWay(way);
+					//nodes = this.getNodesForWay(way);
 
-					new B.Building(way, nodes).addTo(model);
+					new B.Building(way, this).addTo(model);
 				}
 				break;
 			}

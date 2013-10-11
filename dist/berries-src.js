@@ -2355,15 +2355,16 @@ B.Building = B.Class.extend({
 	_height: 0,
 	_way: {},
 	_nodes: {},
+	_osmDC: null,
 	options: {
 		floors: 2,
 		floorHeight: 3.048 // meters
 	},
-	initialize: function (way, nodes, options) {
+	initialize: function (way, osmDC, options) {
 		options = B.setOptions(this, options);
 
 		this._way = way;
-		this._nodes = nodes;
+		this._osmDC = osmDC;
 
 		// TODO: Base this on tags, if available
 		this._height = this.options.floors * this.options.floorHeight;
@@ -2373,9 +2374,13 @@ B.Building = B.Class.extend({
 		var outlinePoints = [];
 		var vec;
 		var lat, lon;
-		for (var i in this._nodes) {
-			lat = Number(this._nodes[i].lat);
-			lon = Number(this._nodes[i].lon);
+		for (var i in this._way.nodes) {
+			var nodeId = this._way.nodes[i];
+
+			var node = this._osmDC.getNode(nodeId);
+
+			lat = Number(node.lat);
+			lon = Number(node.lon);
 			vec = model.getTerrain().worldVector(lat, lon);
 			vec.y += 1;
 			outlinePoints.push(vec);
@@ -2459,9 +2464,9 @@ B.OSMDataContainer = B.Class.extend({
 				var buildings = this.get('buildings');
 				for (var bId in buildings) {
 					way = buildings[bId];
-					nodes = this.getNodesForWay(way);
+					//nodes = this.getNodesForWay(way);
 
-					new B.Building(way, nodes).addTo(model);
+					new B.Building(way, this).addTo(model);
 				}
 				break;
 			}
