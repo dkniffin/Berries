@@ -16,7 +16,7 @@ B.DefaultControl = B.Class.extend({
 		keys: [33, 34, 35, 36, 38, 40, 39, 37, 38, 40, 39, 37],
 		zoomIncrement: 10,
 		panIncrement: 10,
-		pitchIncrement: 10,
+		pitchIncrement: 0.1,
 		maxZoomInHeight: 1800,
 		maxZoomOutHeight: 10000
 	},
@@ -75,8 +75,12 @@ B.DefaultControl = B.Class.extend({
 	panwest: function () {
 		this._camera.position.z -= this.options.panIncrement;
 	},
-	pitchup: function () { },
-	pitchdown: function () { },
+	pitchup: function () {
+		this._camera.rotation.y -= this.options.pitchIncrement;
+	},
+	pitchdown: function () {
+		this._camera.rotation.y += this.options.pitchIncrement;
+	},
 	rotatecw: function () { },
 	rotateccw: function () { },
 
