@@ -96,6 +96,7 @@ B.Road = B.Class.extend({
 
 		var geometry = new THREE.ExtrudeGeometry(roadshape, {extrudePath: roadspline });
 
+		console.log(geometry);
 
 		// TODO: base the mesh material on tags
 		var mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({

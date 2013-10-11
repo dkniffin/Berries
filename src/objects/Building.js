@@ -40,26 +40,77 @@ B.Building = B.Class.extend({
 		// Add the first point again, to make the object closed
 		outlinePoints.push(outlinePoints[0]);
 
+		
+		
+
+		// Generate the building geometry
+		var buildingGeometry = new THREE.Geometry();
+
+		// TODO: Change this to use a centerpoint
+		//var groundLevel = outlinePoints[0].y;
+		var groundLevel = 3000;
+		var roofLevel = groundLevel + this._height;
+
+		// First, the walls
+		for (var j in outlinePoints) {
+			var point = outlinePoints[j];
+			var point2i = (j !== (outlinePoints.length - 1)) ? j++ : 0;
+			var point2 = outlinePoints[point2i];
+
+			var wallGeometry = new THREE.Geometry();
+			wallGeometry.vertices.push(new THREE.Vector3(point.x, groundLevel, point.z));
+			wallGeometry.vertices.push(new THREE.Vector3(point2.x, groundLevel, point2.z));
+			wallGeometry.vertices.push(new THREE.Vector3(point2.x, roofLevel, point2.z));
+			wallGeometry.vertices.push(new THREE.Vector3(point.x, roofLevel, point.z));
+
+			wallGeometry.faces.push(new THREE.Face3(0, 1, 2));
+			wallGeometry.faces.push(new THREE.Face3(0, 2, 3));
+
+
+
+			THREE.GeometryUtils.merge(buildingGeometry, wallGeometry);
+		}
+
+		console.log(buildingGeometry);
+		buildingGeometry.computeCentroids();
+		buildingGeometry.computeBoundingSphere();
+		buildingGeometry.computeFaceNormals();
+
+
+		// TODO: Use textures
+		var mesh = new THREE.Mesh(buildingGeometry, new THREE.MeshBasicMaterial({
+			color: 0xff0000
+		}));
+		model.addObject(mesh);
+
+
+
+
+		// TODO: Change this to use a centerpoint
 		/*
 		var buildingOutline = new THREE.Shape(outlinePoints);
 
-		
-		// TODO: Change this to use a centerpoint
 		var groundPoint = outlinePoints[0];
-		var buildingTopPoint = new THREE.Vector3(groundPoint.x, groundPoint.y + this._height, groundPoint.z);
+		var buildingTopPoint = new THREE.Vector3(groundPoint.x, groundPoint.y + 50, groundPoint.z);
 
 		var vertical = new THREE.SplineCurve3([groundPoint, buildingTopPoint]);
 
 		var geometry = new THREE.ExtrudeGeometry(buildingOutline, {extrudePath: vertical });
+
+		
 
 		// TODO: Use textures
 		var mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
 			color: 0xff0000
 		}));
 		model.addObject(mesh);
+
 		*/
 		
 		
+		
+		
+		// Outline
 		var geometry = new THREE.Geometry();
 		geometry.vertices = outlinePoints;
 
@@ -68,6 +119,8 @@ B.Building = B.Class.extend({
 		}));
 
 		model.addObject(line);
+		
+		console.log(geometry);
 		
 		return this;
 	}
