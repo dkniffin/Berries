@@ -47,8 +47,8 @@ B.Building = B.Class.extend({
 		var buildingGeometry = new THREE.Geometry();
 
 		// TODO: Change this to use a centerpoint
-		//var groundLevel = outlinePoints[0].y;
-		var groundLevel = 3000;
+		var groundLevel = outlinePoints[0].y;
+		//var groundLevel = 3000;
 		var roofLevel = groundLevel + this._height;
 
 		// First, the walls
@@ -79,7 +79,8 @@ B.Building = B.Class.extend({
 
 		// TODO: Use textures
 		var mesh = new THREE.Mesh(buildingGeometry, new THREE.MeshBasicMaterial({
-			color: 0xff0000
+			color: 0x0000ff,
+			wireframe: true
 		}));
 		model.addObject(mesh);
 
