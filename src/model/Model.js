@@ -4,7 +4,10 @@
 
 B.Model = B.Class.extend({
 	_clock: new THREE.Clock(),
-	
+	_objects: {
+		roads: [],
+		buildings: []
+	},
 	options: {
 	},
 
@@ -27,6 +30,9 @@ B.Model = B.Class.extend({
 	},
 	getTerrain: function () {
 		return this._terrain;
+	},
+	addRoad: function (road) {
+		this._objects.roads.push(road);
 	},
 	addObject: function (object) {
 		this._scene.add(object);

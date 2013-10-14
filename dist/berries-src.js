@@ -1753,7 +1753,10 @@ B.DefaultControl = B.Class.extend({
 
 B.Model = B.Class.extend({
 	_clock: new THREE.Clock(),
-	
+	_objects: {
+		roads: [],
+		buildings: []
+	},
 	options: {
 	},
 
@@ -1776,6 +1779,9 @@ B.Model = B.Class.extend({
 	},
 	getTerrain: function () {
 		return this._terrain;
+	},
+	addRoad: function (road) {
+		this._objects.roads.push(road);
 	},
 	addObject: function (object) {
 		this._scene.add(object);
@@ -2284,17 +2290,16 @@ B.Road = B.Class.extend({
 
 	_osmDC: null,
 	_way: null,
+	_geometry: null,
 	options: {
 		lanes: 2,
 		laneWidth: 3.5 // meters
 	},
-	initialize: function (way, osmDC, options) {
+	initialize: function (way, osmDC, model, options) {
 		options = B.setOptions(this, options);
 
 		this._way = way;
 		this._osmDC = osmDC;
-	},
-	addTo: function (model) {
 
 		// Do some logic to determine appropriate road width.
 		var width = this.options.lanes * this.options.laneWidth; // Default to input options
@@ -2372,16 +2377,8 @@ B.Road = B.Class.extend({
 		}
 		var roadspline = new THREE.SplineCurve3(splinepoints);
 
-		var geometry = new THREE.ExtrudeGeometry(roadshape, {extrudePath: roadspline });
+		this._geometry = new THREE.ExtrudeGeometry(roadshape, {extrudePath: roadspline });
 
-		console.log(geometry);
-
-		// TODO: base the mesh material on tags
-		var mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
-			color: 0x959393
-		}));
-		model.addObject(mesh);
-		return this;
 	}
 });
 
@@ -2404,7 +2401,7 @@ B.Building = B.Class.extend({
 		floors: 2,
 		floorHeight: 3.048 // meters
 	},
-	initialize: function (way, osmDC, options) {
+	initialize: function (way, osmDC, model, options) {
 		options = B.setOptions(this, options);
 
 		this._way = way;
@@ -2413,8 +2410,7 @@ B.Building = B.Class.extend({
 		// TODO: Base this on tags, if available
 		this._height = this.options.floors * this.options.floorHeight;
 
-	},
-	addTo: function (model) {
+
 		var outlinePoints = [];
 		var vec;
 		var lat, lon;
@@ -2432,11 +2428,10 @@ B.Building = B.Class.extend({
 		// Add the first point again, to make the object closed
 		outlinePoints.push(outlinePoints[0]);
 
-		
-		
+
 
 		// Generate the building geometry
-		var buildingGeometry = new THREE.Geometry();
+		var buildingGeometry = this._geometry =  new THREE.Geometry();
 
 		// TODO: Change this to use a centerpoint
 		var groundLevel = outlinePoints[0].y;
@@ -2463,20 +2458,9 @@ B.Building = B.Class.extend({
 			THREE.GeometryUtils.merge(buildingGeometry, wallGeometry);
 		}
 
-		console.log(buildingGeometry);
 		buildingGeometry.computeCentroids();
 		buildingGeometry.computeBoundingSphere();
 		buildingGeometry.computeFaceNormals();
-
-
-		// TODO: Use textures
-		var mesh = new THREE.Mesh(buildingGeometry, new THREE.MeshBasicMaterial({
-			color: 0x0000ff,
-			wireframe: true
-		}));
-		model.addObject(mesh);
-
-
 
 
 		// TODO: Change this to use a centerpoint
@@ -2513,9 +2497,9 @@ B.Building = B.Class.extend({
 
 		model.addObject(line);
 		
-		console.log(geometry);
 		
 		return this;
+
 	}
 });
 
@@ -2523,6 +2507,69 @@ B.building = function (id, options) {
 	return new B.Building(id, options);
 };
 
+
+B.ObjectSet = B.Class.extend({
+
+	_objects: [],
+	options: {
+
+	},
+	initialize: function (id, options) {
+		options = B.setOptions(this, options);
+
+		this._objects = [];
+	},
+	addObject: function (object) {
+		this._objects.push(object);
+	},
+	getMergedGeometries: function () {
+		var mergedGeo = new THREE.Geometry();
+		// Join objects into a single geometry
+		for (var i in this._objects) {
+			THREE.GeometryUtils.merge(mergedGeo, this._objects[i]._geometry);
+		}
+		return mergedGeo;
+	}
+
+});
+
+B.objectset = function (id, options) {
+	return new B.ObjectSet(id, options);
+};
+
+B.RoadSet = B.ObjectSet.extend({
+	addTo: function (model) {
+		var geo = this.getMergedGeometries();
+		// Create a mesh
+		var mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+			color: 0x959393
+		}));
+		// Add it to the model
+		console.log(mesh);
+		model.addObject(mesh);
+	}
+});
+
+B.roadset = function (id, options) {
+	return new B.RoadSet(id, options);
+};
+
+B.BuildingSet = B.ObjectSet.extend({
+	addTo: function (model) {
+		var geo = this.getMergedGeometries();
+		// Create a mesh
+		var mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+			color: 0x0000ff,
+			wireframe: true
+		}));
+		// Add it to the model
+		model.addObject(mesh);
+	}
+});
+
+B.buildingset = function (id, options) {
+	return new B.BuildingSet(id, options);
+};
 
 /* 
  * B.OSMDataContainer is reads in OSM data in JSON format, and allows 
@@ -2551,20 +2598,24 @@ B.OSMDataContainer = B.Class.extend({
 			switch (feature) {
 			case 'roads':
 				var roads = this.get('roads');
+				var roadSet = new B.roadset();
 				for (var roadI in roads) {
 					way = roads[roadI];
 					
-					new B.Road(way, this).addTo(model);
+					roadSet.addObject(new B.Road(way, this, model));
 				}
+				roadSet.addTo(model);
 				break;
 			case 'buildings':
 				var buildings = this.get('buildings');
+				var bldgSet = new B.buildingset();
 				for (var bId in buildings) {
 					way = buildings[bId];
 					//nodes = this.getNodesForWay(way);
 
-					new B.Building(way, this).addTo(model);
+					bldgSet.addObject(new B.Building(way, this, model));
 				}
+				bldgSet.addTo(model);
 				break;
 			}
 		}
