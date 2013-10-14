@@ -9,8 +9,8 @@ B.Building = B.Class.extend({
 	_nodes: {},
 	_osmDC: null,
 	options: {
-		floors: 2,
-		floorHeight: 3.048 // meters
+		levels: 2,
+		levelHeight: 3.048 // meters (~10ft)
 	},
 	initialize: function (way, osmDC, model, options) {
 		options = B.setOptions(this, options);
@@ -18,9 +18,52 @@ B.Building = B.Class.extend({
 		this._way = way;
 		this._osmDC = osmDC;
 
-		// TODO: Base this on tags, if available
-		this._height = this.options.floors * this.options.floorHeight;
+		// Some logic to determine the height of the building
+		var height = this._height = this.options.levels * this.options.levelHeight; // Default to input options
+		if (this._way.tags) {
+			var tags = this._way.tags;
+			if (tags.height) {
+				// If the height tag is defined, use it
+				// TODO: Check for various values (not meters)
+				height = tags.height;
+			} else {
+				// Otherwise use levels for calculation
+				var levels = this.options.levels;
+				if (tags['building:levels']) {
+					levels = tags['building:levels'];
+				} else if (tags.building) {
+					switch (tags.building) {
+					case 'school':
+						levels = 2;
+						break;
+					case 'apartments':
+					case 'office':
+						levels = 3;
+						break;
+					case 'hospital':
+						levels = 4;
+						break;
+					case 'hotel':
+						levels = 10;
+						break;
+					case 'house':
+					case 'garage':
+					case 'roof': // TODO: Might want to handle this one separately
+					case 'hut':
+						levels = 1;
+						break;
+					}
+				}
 
+				var levelHeight = this.options.levelHeight;
+
+				height = levels * levelHeight;
+			}
+		}
+	
+
+
+		// TODO: Use min_height
 
 		var outlinePoints = [];
 		var vec;
@@ -49,7 +92,7 @@ B.Building = B.Class.extend({
 		// TODO: Change this to use a centerpoint
 		var groundLevel = outlinePoints[0].y;
 		//var groundLevel = 3000;
-		var roofLevel = groundLevel + this._height;
+		var roofLevel = groundLevel + height;
 
 		var clockwise = this._isClockwise(outlinePoints);
 
