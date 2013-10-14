@@ -12,7 +12,7 @@ B.Building = B.Class.extend({
 		floors: 2,
 		floorHeight: 3.048 // meters
 	},
-	initialize: function (way, osmDC, options) {
+	initialize: function (way, osmDC, model, options) {
 		options = B.setOptions(this, options);
 
 		this._way = way;
@@ -21,8 +21,7 @@ B.Building = B.Class.extend({
 		// TODO: Base this on tags, if available
 		this._height = this.options.floors * this.options.floorHeight;
 
-	},
-	addTo: function (model) {
+
 		var outlinePoints = [];
 		var vec;
 		var lat, lon;
@@ -40,11 +39,10 @@ B.Building = B.Class.extend({
 		// Add the first point again, to make the object closed
 		outlinePoints.push(outlinePoints[0]);
 
-		
-		
+
 
 		// Generate the building geometry
-		var buildingGeometry = new THREE.Geometry();
+		var buildingGeometry = this._geometry =  new THREE.Geometry();
 
 		// TODO: Change this to use a centerpoint
 		var groundLevel = outlinePoints[0].y;
@@ -71,20 +69,9 @@ B.Building = B.Class.extend({
 			THREE.GeometryUtils.merge(buildingGeometry, wallGeometry);
 		}
 
-		console.log(buildingGeometry);
 		buildingGeometry.computeCentroids();
 		buildingGeometry.computeBoundingSphere();
 		buildingGeometry.computeFaceNormals();
-
-
-		// TODO: Use textures
-		var mesh = new THREE.Mesh(buildingGeometry, new THREE.MeshBasicMaterial({
-			color: 0x0000ff,
-			wireframe: true
-		}));
-		model.addObject(mesh);
-
-
 
 
 		// TODO: Change this to use a centerpoint
@@ -121,9 +108,9 @@ B.Building = B.Class.extend({
 
 		model.addObject(line);
 		
-		console.log(geometry);
 		
 		return this;
+
 	}
 });
 

@@ -6,17 +6,16 @@ B.Road = B.Class.extend({
 
 	_osmDC: null,
 	_way: null,
+	_geometry: null,
 	options: {
 		lanes: 2,
 		laneWidth: 3.5 // meters
 	},
-	initialize: function (way, osmDC, options) {
+	initialize: function (way, osmDC, model, options) {
 		options = B.setOptions(this, options);
 
 		this._way = way;
 		this._osmDC = osmDC;
-	},
-	addTo: function (model) {
 
 		// Do some logic to determine appropriate road width.
 		var width = this.options.lanes * this.options.laneWidth; // Default to input options
@@ -94,16 +93,8 @@ B.Road = B.Class.extend({
 		}
 		var roadspline = new THREE.SplineCurve3(splinepoints);
 
-		var geometry = new THREE.ExtrudeGeometry(roadshape, {extrudePath: roadspline });
+		this._geometry = new THREE.ExtrudeGeometry(roadshape, {extrudePath: roadspline });
 
-		console.log(geometry);
-
-		// TODO: base the mesh material on tags
-		var mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
-			color: 0x959393
-		}));
-		model.addObject(mesh);
-		return this;
 	}
 });
 

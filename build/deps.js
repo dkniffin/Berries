@@ -33,20 +33,23 @@ var deps = {
 		desc: 'A light source to render in the scene.' 
 	},
 	
-	Road: {
-		src: ['objects/Road.js'],
-		desc: 'A road.'
+	Objects : {
+		src: ['objects/Road.js',
+			  'objects/Building.js'],
+		desc: 'Various objects to add to the scene.'
 	},
 
-	Building: {
-		src: ['objects/Building.js'],
-		desc: 'A road.'
+	ObjectSets: {
+		src: ['object-sets/ObjectSet.js',
+			  'object-sets/RoadSet.js',
+			  'object-sets/BuildingSet.js'],
+		desc: 'Sets of geometries to render as one mesh.'
 	},
 
 	OSMDataContainer: {
 		src: ['osmDataContainer/OSMDataContainer.js'],
 		desc: 'A class to read in OSM data in JSON format, and output various types of data (eg: roads, buildings, etc).',
-		deps: ['Road', 'Building']
+		deps: ['Objects', 'ObjectSets']
 	}
 };
 

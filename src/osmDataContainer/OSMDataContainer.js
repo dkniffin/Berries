@@ -25,20 +25,24 @@ B.OSMDataContainer = B.Class.extend({
 			switch (feature) {
 			case 'roads':
 				var roads = this.get('roads');
+				var roadSet = new B.roadset();
 				for (var roadI in roads) {
 					way = roads[roadI];
 					
-					new B.Road(way, this).addTo(model);
+					roadSet.addObject(new B.Road(way, this, model));
 				}
+				roadSet.addTo(model);
 				break;
 			case 'buildings':
 				var buildings = this.get('buildings');
+				var bldgSet = new B.buildingset();
 				for (var bId in buildings) {
 					way = buildings[bId];
 					//nodes = this.getNodesForWay(way);
 
-					new B.Building(way, this).addTo(model);
+					bldgSet.addObject(new B.Building(way, this, model));
 				}
+				bldgSet.addTo(model);
 				break;
 			}
 		}
