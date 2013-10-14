@@ -25,7 +25,8 @@ B.Building = B.Class.extend({
 		var outlinePoints = [];
 		var vec;
 		var lat, lon;
-		for (var i in this._way.nodes) {
+		var i;
+		for (i in this._way.nodes) {
 			var nodeId = this._way.nodes[i];
 
 			var node = this._osmDC.getNode(nodeId);
@@ -43,16 +44,20 @@ B.Building = B.Class.extend({
 
 		// Generate the building geometry
 		var buildingGeometry = this._geometry =  new THREE.Geometry();
+		var roofPointsCoplanar = [];
 
 		// TODO: Change this to use a centerpoint
 		var groundLevel = outlinePoints[0].y;
 		//var groundLevel = 3000;
 		var roofLevel = groundLevel + this._height;
 
+		var clockwise = this._isClockwise(outlinePoints);
+
 		// First, the walls
 		for (var j in outlinePoints) {
+			j = Number(j);
 			var point = outlinePoints[j];
-			var point2i = (j !== (outlinePoints.length - 1)) ? j++ : 0;
+			var point2i = (j !== (outlinePoints.length - 1)) ? j + 1 : 0;
 			var point2 = outlinePoints[point2i];
 
 			var wallGeometry = new THREE.Geometry();
@@ -61,44 +66,55 @@ B.Building = B.Class.extend({
 			wallGeometry.vertices.push(new THREE.Vector3(point2.x, roofLevel, point2.z));
 			wallGeometry.vertices.push(new THREE.Vector3(point.x, roofLevel, point.z));
 
-			wallGeometry.faces.push(new THREE.Face3(0, 1, 2));
-			wallGeometry.faces.push(new THREE.Face3(0, 2, 3));
-
+			if (clockwise) {
+				wallGeometry.faces.push(new THREE.Face3(2, 1, 0));
+				wallGeometry.faces.push(new THREE.Face3(3, 2, 0));
+			} else {
+				wallGeometry.faces.push(new THREE.Face3(0, 1, 2));
+				wallGeometry.faces.push(new THREE.Face3(0, 2, 3));
+			}
 
 
 			THREE.GeometryUtils.merge(buildingGeometry, wallGeometry);
+
+
+			// create a point for the roof
+			roofPointsCoplanar.push(new THREE.Vector3(point.x, roofLevel, point.z));
 		}
 
-		buildingGeometry.computeCentroids();
-		buildingGeometry.computeBoundingSphere();
+
+		// Then the roof
+		var roofGeometry = new THREE.Geometry();
+		var roofShape = new THREE.Shape(roofPointsCoplanar);
+
+		var shapePoints = roofShape.extractPoints();
+
+		var faces = THREE.Shape.Utils.triangulateShape(shapePoints.shape, shapePoints.holes);
+
+		for (i = 0; i < shapePoints.shape.length; i++) {
+			roofGeometry.vertices.push(new THREE.Vector3(shapePoints.shape[i].x, 0, shapePoints.shape[i].y));
+		}
+		for (i = 0; i < faces.length ; i++) {
+			var a = faces[i][2], b = faces[i][1], c = faces[i][0];
+			var v1 = shapePoints.shape[a], v2 = shapePoints.shape[b], v3 = shapePoints.shape[c];
+
+			roofGeometry.faces.push(new THREE.Face3(a, b, c));
+			roofGeometry.faceVertexUvs[0].push(
+			[new THREE.UV(v1.x, v1.y), new THREE.UV(v2.x, v2.y), new THREE.UV(v3.x, v3.y)]);
+		}
+
+
+
+		THREE.GeometryUtils.merge(buildingGeometry, roofGeometry);
+
+		console.debug(roofGeometry);
+
+
+
 		buildingGeometry.computeFaceNormals();
-
-
-		// TODO: Change this to use a centerpoint
-		/*
-		var buildingOutline = new THREE.Shape(outlinePoints);
-
-		var groundPoint = outlinePoints[0];
-		var buildingTopPoint = new THREE.Vector3(groundPoint.x, groundPoint.y + 50, groundPoint.z);
-
-		var vertical = new THREE.SplineCurve3([groundPoint, buildingTopPoint]);
-
-		var geometry = new THREE.ExtrudeGeometry(buildingOutline, {extrudePath: vertical });
-
-		
-
-		// TODO: Use textures
-		var mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
-			color: 0xff0000
-		}));
-		model.addObject(mesh);
-
-		*/
-		
-		
-		
 		
 		// Outline
+		/*
 		var geometry = new THREE.Geometry();
 		geometry.vertices = outlinePoints;
 
@@ -107,10 +123,29 @@ B.Building = B.Class.extend({
 		}));
 
 		model.addObject(line);
-		
-		
+		*/
 		return this;
 
+	},
+
+	_isClockwise: function (points) {
+		var total = 0;
+		for (var i in points) {
+			i = Number(i);
+			var p1 = points[i];
+			var p2i = (i !== (points.length - 1)) ? i + 1 : 0;
+			var p2 = points[p2i];
+
+			total += (p2.x - p1.x) * (p2.y + p1.y);
+		}
+
+		if (total > 0) {
+			return true;
+		} else if (total < 0) {
+			return false;
+		} else {
+			return 'meh';
+		}
 	}
 });
 
