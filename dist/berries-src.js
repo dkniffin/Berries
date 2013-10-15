@@ -2399,7 +2399,7 @@ B.Building = B.Class.extend({
 	_osmDC: null,
 	options: {
 		levels: 2,
-		levelHeight: 3.048 // meters (~10ft)
+		levelHeight: 3.048 // meters
 	},
 	initialize: function (way, osmDC, model, options) {
 		options = B.setOptions(this, options);
@@ -2422,6 +2422,12 @@ B.Building = B.Class.extend({
 					levels = tags['building:levels'];
 				} else if (tags.building) {
 					switch (tags.building) {
+					case 'house':
+					case 'garage':
+					case 'roof': // TODO: Handle this separately
+					case 'hut':
+						levels = 1;
+						break;
 					case 'school':
 						levels = 2;
 						break;
@@ -2435,12 +2441,6 @@ B.Building = B.Class.extend({
 					case 'hotel':
 						levels = 10;
 						break;
-					case 'house':
-					case 'garage':
-					case 'roof': // TODO: Might want to handle this one separately
-					case 'hut':
-						levels = 1;
-						break;
 					}
 				}
 
@@ -2449,7 +2449,6 @@ B.Building = B.Class.extend({
 				height = levels * levelHeight;
 			}
 		}
-	
 
 
 		// TODO: Use min_height
@@ -2483,7 +2482,13 @@ B.Building = B.Class.extend({
 		//var groundLevel = 3000;
 		var roofLevel = groundLevel + height;
 
-		var clockwise = this._isClockwise(outlinePoints);
+		var clockwise = this._isClockWise(outlinePoints);
+
+		if (clockwise) {
+			// Reverse CCW point sets
+			outlinePoints.reverse();
+		}
+
 
 		// First, the walls
 		for (var j in outlinePoints) {
@@ -2498,21 +2503,17 @@ B.Building = B.Class.extend({
 			wallGeometry.vertices.push(new THREE.Vector3(point2.x, roofLevel, point2.z));
 			wallGeometry.vertices.push(new THREE.Vector3(point.x, roofLevel, point.z));
 
-			if (clockwise) {
-				wallGeometry.faces.push(new THREE.Face3(2, 1, 0));
-				wallGeometry.faces.push(new THREE.Face3(3, 2, 0));
-			} else {
-				wallGeometry.faces.push(new THREE.Face3(0, 1, 2));
-				wallGeometry.faces.push(new THREE.Face3(0, 2, 3));
-			}
-
+			wallGeometry.faces.push(new THREE.Face3(2, 1, 0));
+			wallGeometry.faces.push(new THREE.Face3(3, 2, 0));
 
 			THREE.GeometryUtils.merge(buildingGeometry, wallGeometry);
 
 
 			// create a point for the roof
-			roofPointsCoplanar.push(new THREE.Vector3(point.x, roofLevel, point.z));
+			roofPointsCoplanar.push(new THREE.Vector2(point.x, point.z));
 		}
+
+		
 
 
 		// Then the roof
@@ -2520,26 +2521,21 @@ B.Building = B.Class.extend({
 		var roofShape = new THREE.Shape(roofPointsCoplanar);
 
 		var shapePoints = roofShape.extractPoints();
-
 		var faces = THREE.Shape.Utils.triangulateShape(shapePoints.shape, shapePoints.holes);
 
-		for (i = 0; i < shapePoints.shape.length; i++) {
-			roofGeometry.vertices.push(new THREE.Vector3(shapePoints.shape[i].x, 0, shapePoints.shape[i].y));
+		for (i in shapePoints.shape) {
+			var vertex = shapePoints.shape[i];
+			roofGeometry.vertices.push(new THREE.Vector3(vertex.x, roofLevel, vertex.y));
 		}
-		for (i = 0; i < faces.length ; i++) {
-			var a = faces[i][2], b = faces[i][1], c = faces[i][0];
-			var v1 = shapePoints.shape[a], v2 = shapePoints.shape[b], v3 = shapePoints.shape[c];
-
-			roofGeometry.faces.push(new THREE.Face3(a, b, c));
-			roofGeometry.faceVertexUvs[0].push(
-			[new THREE.UV(v1.x, v1.y), new THREE.UV(v2.x, v2.y), new THREE.UV(v3.x, v3.y)]);
+		for (i in faces) {
+			roofGeometry.faces.push(new THREE.Face3(faces[i][0], faces[i][1], faces[i][2]));
 		}
 
-
+		roofGeometry.computeFaceNormals();
 
 		THREE.GeometryUtils.merge(buildingGeometry, roofGeometry);
 
-		console.debug(roofGeometry);
+		//console.debug(roofGeometry);
 
 
 
@@ -2559,8 +2555,7 @@ B.Building = B.Class.extend({
 		return this;
 
 	},
-
-	_isClockwise: function (points) {
+	_isClockWise: function (points) {
 		var total = 0;
 		for (var i in points) {
 			i = Number(i);
@@ -2638,7 +2633,7 @@ B.BuildingSet = B.ObjectSet.extend({
 		// Create a mesh
 		var mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
 			color: 0x0000ff,
-			wireframe: true
+			side: THREE.DoubleSide
 		}));
 		// Add it to the model
 		model.addObject(mesh);
@@ -2659,7 +2654,7 @@ B.OSMDataContainer = B.Class.extend({
 	_ways: [],
 	_relations: [],
 	options: {
-		render: ['roads', 'buildings'],
+		render: [/*'roads', */'buildings'],
 	},
 	initialize: function (data, options) {
 		options = B.setOptions(this, options);

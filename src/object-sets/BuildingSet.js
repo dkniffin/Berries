@@ -4,7 +4,7 @@ B.BuildingSet = B.ObjectSet.extend({
 		// Create a mesh
 		var mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
 			color: 0x0000ff,
-			wireframe: true
+			side: THREE.DoubleSide
 		}));
 		// Add it to the model
 		model.addObject(mesh);

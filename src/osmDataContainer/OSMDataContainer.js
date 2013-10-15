@@ -8,7 +8,7 @@ B.OSMDataContainer = B.Class.extend({
 	_ways: [],
 	_relations: [],
 	options: {
-		render: ['roads', 'buildings'],
+		render: [/*'roads', */'buildings'],
 	},
 	initialize: function (data, options) {
 		options = B.setOptions(this, options);
