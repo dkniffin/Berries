@@ -24,7 +24,7 @@ B.ObjectSet = B.Class.extend({
 		var mergedMats = [];
 		// Join object materials into one
 		for (var i in this._objects) {
-			mergedMats = mergedMats.concat(this._objects[i]._materials);
+			mergedMats = mergedMats.concat(this._objects[i]._materialMap);
 		}
 		return mergedMats;
 	},

@@ -2398,7 +2398,12 @@ B.Building = B.Class.extend({
 	_nodes: {},
 	_osmDC: null,
 	_geometry: null,
-	_materials: [],
+	_mesh: null,
+	_materials: [new THREE.MeshBasicMaterial({color: 0x841F27, side: THREE.DoubleSide }),
+				 new THREE.MeshBasicMaterial({color: 0xF2F2F2, wireframe: true, side: THREE.DoubleSide })
+				 ],
+	_materialIndices: {WALL: 0, ROOF: 1},
+	_materialMap: [],
 	options: {
 		levels: 2,
 		levelHeight: 3.048 // meters
@@ -2477,7 +2482,6 @@ B.Building = B.Class.extend({
 
 		// Generate the building geometry
 		var buildingGeometry = this._geometry =  new THREE.Geometry();
-		var buildingMaterials = this._materials = [];
 		var roofPointsCoplanar = [];
 
 		// TODO: Change this to use a centerpoint
@@ -2508,14 +2512,13 @@ B.Building = B.Class.extend({
 
 			wallGeometry.faces.push(new THREE.Face3(2, 1, 0));
 			wallGeometry.faces.push(new THREE.Face3(3, 2, 0));
+			this._materialMap.push(this._materials[this._materialIndices.WALL]);
+			this._materialMap.push(this._materials[this._materialIndices.WALL]);
+			//this._materialMap.push(this._materialIndices.WALL);
+			//this._materialMap.push(this._materialIndices.WALL);
+
 
 			THREE.GeometryUtils.merge(buildingGeometry, wallGeometry);
-
-			// Wall material
-			buildingMaterials.push(new THREE.MeshBasicMaterial({
-				color: 0x841F27,
-				side: THREE.DoubleSide
-			}));
 
 			// create a point for the roof
 			roofPointsCoplanar.push(new THREE.Vector2(point.x, point.z));
@@ -2535,24 +2538,18 @@ B.Building = B.Class.extend({
 		}
 		for (i in faces) {
 			roofGeometry.faces.push(new THREE.Face3(faces[i][0], faces[i][1], faces[i][2]));
+			this._materialMap.push(this._materials[this._materialIndices.ROOF]);
+			//this._materialMap.push(this._materialIndices.ROOF);
 		}
 
 		roofGeometry.computeFaceNormals();
 
-		// Roof Material
-		buildingMaterials.push(new THREE.MeshBasicMaterial({
-			color: 0xF2F2F2,
-			wireframe: true,
-			side: THREE.DoubleSide
-		}));
-
 		THREE.GeometryUtils.merge(buildingGeometry, roofGeometry);
 
-		//console.debug(roofGeometry);
-
-
-
 		buildingGeometry.computeFaceNormals();
+
+
+		this._mesh = new THREE.Mesh(buildingGeometry, new THREE.MeshFaceMaterial(this._materialMap));
 		
 		// Outline
 		/*
@@ -2620,7 +2617,7 @@ B.ObjectSet = B.Class.extend({
 		var mergedMats = [];
 		// Join object materials into one
 		for (var i in this._objects) {
-			mergedMats = mergedMats.concat(this._objects[i]._materials);
+			mergedMats = mergedMats.concat(this._objects[i]._materialMap);
 		}
 		return mergedMats;
 	},
@@ -2659,12 +2656,15 @@ B.roadset = function (id, options) {
 
 B.BuildingSet = B.ObjectSet.extend({
 	addTo: function (model) {
-		var geo = this.getMergedGeometries();
-		var mats = this.getMergedMaterials();
+		//var geo = this.getMergedGeometries();
+		//var mats = this.getMergedMaterials();
 		// Create a mesh
-		var mesh = new THREE.Mesh(geo, new THREE.MeshFaceMaterial(mats));
+		//var mesh = new THREE.Mesh(geo, new THREE.MeshFaceMaterial(mats));
+		for (var i in this._objects) {
+			model.addObject(this._objects[i]._mesh);
+		}
 		// Add it to the model
-		model.addObject(mesh);
+		//model.addObject(mesh);
 	}
 });
 
