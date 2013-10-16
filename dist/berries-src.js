@@ -2397,6 +2397,8 @@ B.Building = B.Class.extend({
 	_way: {},
 	_nodes: {},
 	_osmDC: null,
+	_geometry: null,
+	_materials: [],
 	options: {
 		levels: 2,
 		levelHeight: 3.048 // meters
@@ -2469,12 +2471,13 @@ B.Building = B.Class.extend({
 			outlinePoints.push(vec);
 		}
 		// Add the first point again, to make the object closed
-		outlinePoints.push(outlinePoints[0]);
+		//outlinePoints.push(outlinePoints[0]);
 
 
 
 		// Generate the building geometry
 		var buildingGeometry = this._geometry =  new THREE.Geometry();
+		var buildingMaterials = this._materials = [];
 		var roofPointsCoplanar = [];
 
 		// TODO: Change this to use a centerpoint
@@ -2508,12 +2511,15 @@ B.Building = B.Class.extend({
 
 			THREE.GeometryUtils.merge(buildingGeometry, wallGeometry);
 
+			// Wall material
+			buildingMaterials.push(new THREE.MeshBasicMaterial({
+				color: 0x841F27,
+				side: THREE.DoubleSide
+			}));
 
 			// create a point for the roof
 			roofPointsCoplanar.push(new THREE.Vector2(point.x, point.z));
 		}
-
-		
 
 
 		// Then the roof
@@ -2532,6 +2538,13 @@ B.Building = B.Class.extend({
 		}
 
 		roofGeometry.computeFaceNormals();
+
+		// Roof Material
+		buildingMaterials.push(new THREE.MeshBasicMaterial({
+			color: 0xF2F2F2,
+			wireframe: true,
+			side: THREE.DoubleSide
+		}));
 
 		THREE.GeometryUtils.merge(buildingGeometry, roofGeometry);
 
@@ -2602,7 +2615,24 @@ B.ObjectSet = B.Class.extend({
 			THREE.GeometryUtils.merge(mergedGeo, this._objects[i]._geometry);
 		}
 		return mergedGeo;
+	},
+	getMergedMaterials: function () {
+		var mergedMats = [];
+		// Join object materials into one
+		for (var i in this._objects) {
+			mergedMats = mergedMats.concat(this._objects[i]._materials);
+		}
+		return mergedMats;
+	},
+	getMergedMesh: function () {
+		var mergedMesh = new THREE.Mesh();
+		// Join objects into a single mesh
+		for (var i in this._objects) {
+			THREE.GeometryUtils.merge(mergedMesh, this._objects[i]._mesh);
+		}
+		return mergedMesh;
 	}
+
 
 });
 
@@ -2630,11 +2660,9 @@ B.roadset = function (id, options) {
 B.BuildingSet = B.ObjectSet.extend({
 	addTo: function (model) {
 		var geo = this.getMergedGeometries();
+		var mats = this.getMergedMaterials();
 		// Create a mesh
-		var mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
-			color: 0x0000ff,
-			side: THREE.DoubleSide
-		}));
+		var mesh = new THREE.Mesh(geo, new THREE.MeshFaceMaterial(mats));
 		// Add it to the model
 		model.addObject(mesh);
 	}
