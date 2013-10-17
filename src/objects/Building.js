@@ -7,7 +7,6 @@ B.Building = B.Class.extend({
 	_way: {},
 	_osmDC: null,
 	_geometry: null,
-	_materialIndices: {WALL: 0, ROOF: 1},
 	options: {
 		levels: 2,
 		levelHeight: 3.048 // meters
@@ -73,8 +72,8 @@ B.Building = B.Class.extend({
 			wallGeometry.vertices.push(new THREE.Vector3(point2.x, roofLevel, point2.z));
 			wallGeometry.vertices.push(new THREE.Vector3(point.x, roofLevel, point.z));
 
-			wallGeometry.faces.push(new THREE.Face3(2, 1, 0, null, null, this._materialIndices.WALL));
-			wallGeometry.faces.push(new THREE.Face3(3, 2, 0, null, null, this._materialIndices.WALL));
+			wallGeometry.faces.push(new THREE.Face3(2, 1, 0, null, null, B.Materials.BRICKRED));
+			wallGeometry.faces.push(new THREE.Face3(3, 2, 0, null, null, B.Materials.BRICKRED));
 
 			// Append it to the rest of the building geometry
 			THREE.GeometryUtils.merge(buildingGeometry, wallGeometry);
@@ -97,7 +96,7 @@ B.Building = B.Class.extend({
 		}
 		for (i in faces) {
 			roofGeometry.faces.push(new THREE.Face3(faces[i][0], faces[i][1], faces[i][2],
-				null, null, this._materialIndices.ROOF));
+				null, null, B.Materials.CONCRETEWHITE));
 		}
 
 		roofGeometry.computeFaceNormals();

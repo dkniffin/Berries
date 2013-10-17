@@ -516,6 +516,40 @@ B.logger = function (id, options) {
 	return new B.Logger(id, options);
 };
 
+B.Materials = {
+	MATERIALS: [],
+	addMaterial: function (name, material) {
+		if (! name.match(/^[A-Z0-9]+$/)) {
+			throw new Error('Material name does not match regex. Must be all uppercase alpha-numerical characters');
+		}
+		if (typeof this[name] !== 'undefined') {
+			throw new Error('Material with name already exists. Use update instead.');
+		}
+
+		// Add the material to the materials array
+		this.MATERIALS.push(material);
+
+		// Add the index as a attrib for B.Materials
+		this[name] = this.MATERIALS.length - 1;
+	},
+	updateMaterial: function (name, newMaterial) {
+		if (typeof this[name] === 'undefined') {
+			throw new Error('Material does not exist yet. Cannot update.');
+		} else {
+			var matindex = this[name];
+			this.MATERIALS[matindex] = newMaterial;
+		}
+	},
+	getMaterial: function (name) {
+		return B.Materials.MATERIALS[this[name]];
+	}
+
+};
+
+// Colored Materials
+B.Materials.addMaterial('BRICKRED', new THREE.MeshBasicMaterial({color: 0x841F27, side: THREE.DoubleSide }));
+B.Materials.addMaterial('CONCRETEWHITE', new THREE.MeshBasicMaterial({color: 0xF2F2F2, side: THREE.DoubleSide }));
+
 /*
  * B.Point represents a point with x and y coordinates.
  */
@@ -2191,6 +2225,18 @@ B.Terrain = B.Class.extend({
 		return closest;
 	},
 	_createMesh: function () {
+		/*
+		var dirtMat = B.Materials.getMaterial('DIRT');
+		var texture = dirtMat.map;
+		var widthOfTexture = 10; // meters
+		var heightOfTexture = 10; // meters
+		texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+
+		texture.repeat.set(Math.round(this._dataDepthInMeters / heightOfTexture),
+				Math.round(this._dataWidthInMeters / widthOfTexture));
+
+		this._mesh = new THREE.Mesh(this._geometry, dirtMat);
+		*/
 		var texture = THREE.ImageUtils.loadTexture(B.Util.getTexturePath() + '/dirt3.jpg');
 		var widthOfTexture = 10; // meters
 		var heightOfTexture = 10; // meters
@@ -2396,7 +2442,6 @@ B.Building = B.Class.extend({
 	_way: {},
 	_osmDC: null,
 	_geometry: null,
-	_materialIndices: {WALL: 0, ROOF: 1},
 	options: {
 		levels: 2,
 		levelHeight: 3.048 // meters
@@ -2462,8 +2507,8 @@ B.Building = B.Class.extend({
 			wallGeometry.vertices.push(new THREE.Vector3(point2.x, roofLevel, point2.z));
 			wallGeometry.vertices.push(new THREE.Vector3(point.x, roofLevel, point.z));
 
-			wallGeometry.faces.push(new THREE.Face3(2, 1, 0, null, null, this._materialIndices.WALL));
-			wallGeometry.faces.push(new THREE.Face3(3, 2, 0, null, null, this._materialIndices.WALL));
+			wallGeometry.faces.push(new THREE.Face3(2, 1, 0, null, null, B.Materials.BRICKRED));
+			wallGeometry.faces.push(new THREE.Face3(3, 2, 0, null, null, B.Materials.BRICKRED));
 
 			// Append it to the rest of the building geometry
 			THREE.GeometryUtils.merge(buildingGeometry, wallGeometry);
@@ -2486,7 +2531,7 @@ B.Building = B.Class.extend({
 		}
 		for (i in faces) {
 			roofGeometry.faces.push(new THREE.Face3(faces[i][0], faces[i][1], faces[i][2],
-				null, null, this._materialIndices.ROOF));
+				null, null, B.Materials.CONCRETEWHITE));
 		}
 
 		roofGeometry.computeFaceNormals();
@@ -2624,15 +2669,13 @@ B.roadset = function (id, options) {
 
 B.BuildingSet = B.ObjectSet.extend({
 	// TODO: make a way to set these
-	_materials: [new THREE.MeshBasicMaterial({color: 0x841F27, side: THREE.DoubleSide }), // Wall
-				 new THREE.MeshBasicMaterial({color: 0xF2F2F2, side: THREE.DoubleSide })], // Roof
 	addTo: function (model) {
 		// Add the object set to the model
 
 		// Get the combined geometries of all buildings
 		var geo = this.getMergedGeometries();
 		// Create a mesh
-		var mesh = new THREE.Mesh(geo, new THREE.MeshFaceMaterial(this._materials));
+		var mesh = new THREE.Mesh(geo, new THREE.MeshFaceMaterial(B.Materials.MATERIALS));
 		// Add it to the model
 		model.addObject(mesh);
 	}

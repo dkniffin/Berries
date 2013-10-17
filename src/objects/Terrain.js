@@ -336,6 +336,18 @@ B.Terrain = B.Class.extend({
 		return closest;
 	},
 	_createMesh: function () {
+		/*
+		var dirtMat = B.Materials.getMaterial('DIRT');
+		var texture = dirtMat.map;
+		var widthOfTexture = 10; // meters
+		var heightOfTexture = 10; // meters
+		texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+
+		texture.repeat.set(Math.round(this._dataDepthInMeters / heightOfTexture),
+				Math.round(this._dataWidthInMeters / widthOfTexture));
+
+		this._mesh = new THREE.Mesh(this._geometry, dirtMat);
+		*/
 		var texture = THREE.ImageUtils.loadTexture(B.Util.getTexturePath() + '/dirt3.jpg');
 		var widthOfTexture = 10; // meters
 		var heightOfTexture = 10; // meters
