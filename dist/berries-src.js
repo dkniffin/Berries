@@ -549,6 +549,9 @@ B.Materials = {
 // Colored Materials
 B.Materials.addMaterial('BRICKRED', new THREE.MeshBasicMaterial({color: 0x841F27, side: THREE.DoubleSide }));
 B.Materials.addMaterial('CONCRETEWHITE', new THREE.MeshBasicMaterial({color: 0xF2F2F2, side: THREE.DoubleSide }));
+B.Materials.addMaterial('GLASSBLUE', new THREE.MeshBasicMaterial({color: 0x009DDD, side: THREE.DoubleSide }));
+B.Materials.addMaterial('ASPHALTGREY', new THREE.MeshBasicMaterial({color: 0x757575, side: THREE.DoubleSide }));
+B.Materials.addMaterial('WOODBROWN', new THREE.MeshBasicMaterial({color: 0xAE8F60, side: THREE.DoubleSide }));
 
 /*
  * B.Point represents a point with x and y coordinates.
@@ -2444,7 +2447,8 @@ B.Building = B.Class.extend({
 	_geometry: null,
 	options: {
 		levels: 2,
-		levelHeight: 3.048 // meters
+		levelHeight: 3.048, // meters
+		wallMaterial: B.Materials.CONCRETEWHITE
 	},
 	initialize: function (way, osmDC, model, options) {
 		options = B.setOptions(this, options);
@@ -2493,6 +2497,8 @@ B.Building = B.Class.extend({
 			outlinePoints.reverse();
 		}
 
+		var wallMaterialIndex = this._getWallMaterialIndex(way.tags);
+
 		var roofPointsCoplanar = [];
 		for (j in outlinePoints) {
 			j = Number(j);
@@ -2507,8 +2513,8 @@ B.Building = B.Class.extend({
 			wallGeometry.vertices.push(new THREE.Vector3(point2.x, roofLevel, point2.z));
 			wallGeometry.vertices.push(new THREE.Vector3(point.x, roofLevel, point.z));
 
-			wallGeometry.faces.push(new THREE.Face3(2, 1, 0, null, null, B.Materials.BRICKRED));
-			wallGeometry.faces.push(new THREE.Face3(3, 2, 0, null, null, B.Materials.BRICKRED));
+			wallGeometry.faces.push(new THREE.Face3(2, 1, 0, null, null, wallMaterialIndex));
+			wallGeometry.faces.push(new THREE.Face3(3, 2, 0, null, null, wallMaterialIndex));
 
 			// Append it to the rest of the building geometry
 			THREE.GeometryUtils.merge(buildingGeometry, wallGeometry);
@@ -2531,7 +2537,7 @@ B.Building = B.Class.extend({
 		}
 		for (i in faces) {
 			roofGeometry.faces.push(new THREE.Face3(faces[i][0], faces[i][1], faces[i][2],
-				null, null, B.Materials.CONCRETEWHITE));
+				null, null, B.Materials.ASPHALTGREY));
 		}
 
 		roofGeometry.computeFaceNormals();
@@ -2613,6 +2619,34 @@ B.Building = B.Class.extend({
 			}
 		}
 		return height;
+	},
+	_getWallMaterialIndex: function (tags) {
+		/* 
+		Determine what material (or material index) should be used for the 
+		walls of the building
+		*/
+		// TODO: Test this. building:material has been added to the CC
+		var mat;
+		
+		switch (tags['building:material']) {
+		case 'glass':
+			mat = B.Materials.GLASSBLUE;
+			break;
+		case 'wood':
+			mat = B.Materials.WOODBROWN;
+			break;
+		case 'brick':
+			mat = B.Materials.BRICKRED;
+			break;
+		case 'concrete':
+			mat = B.Materials.CONCRETEWHITE;
+			break;
+		default:
+			mat = this.options.wallMaterial;
+			break;
+		}
+		
+		return mat;
 	}
 });
 
