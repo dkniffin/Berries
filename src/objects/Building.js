@@ -11,10 +11,9 @@ B.Building = B.Class.extend({
 	_geometry: null,
 	_mesh: null,
 	_materials: [new THREE.MeshBasicMaterial({color: 0x841F27, side: THREE.DoubleSide }),
-				 new THREE.MeshBasicMaterial({color: 0xF2F2F2, wireframe: true, side: THREE.DoubleSide })
+				 new THREE.MeshBasicMaterial({color: 0xF2F2F2, side: THREE.DoubleSide })
 				 ],
 	_materialIndices: {WALL: 0, ROOF: 1},
-	_materialMap: [],
 	options: {
 		levels: 2,
 		levelHeight: 3.048 // meters
@@ -93,6 +92,8 @@ B.Building = B.Class.extend({
 
 		// Generate the building geometry
 		var buildingGeometry = this._geometry =  new THREE.Geometry();
+		
+		//var bldgFcMats = [];
 		var roofPointsCoplanar = [];
 
 		// TODO: Change this to use a centerpoint
@@ -121,10 +122,10 @@ B.Building = B.Class.extend({
 			wallGeometry.vertices.push(new THREE.Vector3(point2.x, roofLevel, point2.z));
 			wallGeometry.vertices.push(new THREE.Vector3(point.x, roofLevel, point.z));
 
-			wallGeometry.faces.push(new THREE.Face3(2, 1, 0));
-			wallGeometry.faces.push(new THREE.Face3(3, 2, 0));
-			this._materialMap.push(this._materials[this._materialIndices.WALL]);
-			this._materialMap.push(this._materials[this._materialIndices.WALL]);
+			wallGeometry.faces.push(new THREE.Face3(2, 1, 0, null, null, this._materialIndices.WALL));
+			wallGeometry.faces.push(new THREE.Face3(3, 2, 0, null, null, this._materialIndices.WALL));
+			//bldgFcMats.push(this._materials[this._materialIndices.WALL]);
+			//bldgFcMats.push(this._materials[this._materialIndices.WALL]);
 			//this._materialMap.push(this._materialIndices.WALL);
 			//this._materialMap.push(this._materialIndices.WALL);
 
@@ -148,8 +149,9 @@ B.Building = B.Class.extend({
 			roofGeometry.vertices.push(new THREE.Vector3(vertex.x, roofLevel, vertex.y));
 		}
 		for (i in faces) {
-			roofGeometry.faces.push(new THREE.Face3(faces[i][0], faces[i][1], faces[i][2]));
-			this._materialMap.push(this._materials[this._materialIndices.ROOF]);
+			roofGeometry.faces.push(new THREE.Face3(faces[i][0], faces[i][1], faces[i][2],
+				null, null, this._materialIndices.ROOF));
+			//bldgFcMats.push(this._materials[this._materialIndices.ROOF]);
 			//this._materialMap.push(this._materialIndices.ROOF);
 		}
 
@@ -160,8 +162,10 @@ B.Building = B.Class.extend({
 		buildingGeometry.computeFaceNormals();
 
 
-		this._mesh = new THREE.Mesh(buildingGeometry, new THREE.MeshFaceMaterial(this._materialMap));
+		this._mesh = new THREE.Mesh(buildingGeometry, new THREE.MeshFaceMaterial(this._materials));
 		
+		model.addObject(this._mesh);
+
 		// Outline
 		/*
 		var geometry = new THREE.Geometry();
