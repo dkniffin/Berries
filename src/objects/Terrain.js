@@ -41,6 +41,9 @@ B.Terrain = B.Class.extend({
 		this._updateGeometry();
 		this._createMesh();
 
+		this._mesh.castShadow = true;
+		this._mesh.receiveShadow = true;
+
 		this._mesh.translateX(this._dataWidthInMeters / 2);
 		this._mesh.translateZ(this._dataDepthInMeters / 2);
 
@@ -354,7 +357,7 @@ B.Terrain = B.Class.extend({
 		texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
 		texture.repeat.set(Math.round(this._dataDepthInMeters / heightOfTexture),
 				Math.round(this._dataWidthInMeters / widthOfTexture));
-		this._mesh = new THREE.Mesh(this._geometry, new THREE.MeshBasicMaterial({
+		this._mesh = new THREE.Mesh(this._geometry, new THREE.MeshPhongMaterial({
 			map: texture
 			//color: 0x0000ff
 		}));

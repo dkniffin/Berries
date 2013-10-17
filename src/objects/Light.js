@@ -3,41 +3,56 @@
  */
 
 B.Light = B.Class.extend({
+	_position: null,
 	options: {
 	},
-	initialize: function (lat, lon, ele, options) {
+	initialize: function (position, options) {
 		options = B.setOptions(this, options);
 
-		this._lat = lat;
-		this._lon = lon;
-		this._ele = ele;
+		this._position = position;
 		
 		return this;
 	},
 	addTo: function (model) {
-		
-		var m = this._latlon2meters(this._lat, this._lon);
-		var x = m.x,
-			z = m.y,
-			y = this._ele;
+
+/*
+		var	hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.6);
+		hemiLight.color.setHSL(0.6, 1, 0.6);
+		hemiLight.groundColor.setHSL(0.095, 1, 0.75);
+		hemiLight.position.set(0, 3000, 0);
+		hemiLight.visible = true;
+		model.addObject(hemiLight);
+*/
+
+		var dirLight = new THREE.DirectionalLight(0xffffff);
+		dirLight.position = this._position;
+		dirLight.target.position = new THREE.Vector3(4311, 1640, 7065);
+
+		dirLight.castShadow = true;
+		dirLight.shadowCameraVisible = true;
 
 
-		var directionalLight = new THREE.DirectionalLight(0xffffff);
-		directionalLight.position.set(x, y, z).normalize();
+		dirLight.shadowMapWidth = 2048;
+		dirLight.shadowMapHeight = 2048;
 
-		model.addObject(directionalLight);
+		var d = 70;
+
+		dirLight.shadowCameraLeft = -d;
+		dirLight.shadowCameraRight = d;
+		dirLight.shadowCameraTop = d;
+		dirLight.shadowCameraBottom = -d;
+
+		dirLight.shadowCameraFar = 20000;
+		dirLight.shadowBias = -0.0001;
+		dirLight.shadowDarkness = 0.35;
+
+
+		model.addObject(dirLight);
+
+
 		return this;
-	},
-	_latlon2meters: function (lat, lon) {
-		// Converts a lat,lon set to a x,y (in meters) set
-		// TODO: Move this out of Terrain.js
-		// TODO: Fix this. Lon doesn't convert that easily. This 
-		// value is specific to locations at about 40 N or S
-		return {
-			x: lat * 111000,
-			y: lon * 85000
-		};
-	},
+
+	}
 });
 
 B.light = function (id, options) {

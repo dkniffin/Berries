@@ -4,6 +4,7 @@
 
 B.Model = B.Class.extend({
 	_clock: new THREE.Clock(),
+	_camera: null,
 	_objects: {
 		roads: [],
 		buildings: []
@@ -18,6 +19,10 @@ B.Model = B.Class.extend({
 
 		this._initThree();
 		this._initCamera();
+
+		var lightPos = new THREE.Vector3(2000, 5000, 7065);
+
+		new B.Light(lightPos).addTo(this);
 
 		return this;
 		
@@ -55,6 +60,17 @@ B.Model = B.Class.extend({
 		this._renderer = new THREE.WebGLRenderer();
 		this._renderer.setSize(window.innerWidth, window.innerHeight);
 
+		//this._renderer.gammaInput = true;
+		//this._renderer.gammaOutput = true;
+		this._renderer.physicallyBasedShading = true;
+
+
+		this._renderer.shadowMapEnabled = true;
+		//this._renderer.shadowCameraNear = 3;
+		//this._renderer.shadowCameraFar = 20000;
+		//this._renderer.shadowCameraFov = 50;
+		//this._renderer.shadowMapCullFace = THREE.CullFaceBack;
+
 		// Empty the rendering container
 		this._container.innerHTML = '';
 
@@ -67,6 +83,7 @@ B.Model = B.Class.extend({
 		var camera = this._camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 20000);
 
 		// Position the camera
+		// TODO: Make this an option or something
 		camera.position.x = 2000;
 		camera.position.y = 5000;
 		camera.position.z = 7065;

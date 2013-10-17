@@ -7,6 +7,8 @@ B.BuildingSet = B.ObjectSet.extend({
 		var geo = this.getMergedGeometries();
 		// Create a mesh
 		var mesh = new THREE.Mesh(geo, new THREE.MeshFaceMaterial(B.Materials.MATERIALS));
+		mesh.castShadow = true;
+		mesh.receiveShadow = true;
 		// Add it to the model
 		model.addObject(mesh);
 	}
