@@ -37,7 +37,8 @@ var deps = {
 	
 	Objects : {
 		src: ['objects/Road.js',
-			  'objects/Building.js'],
+			  'objects/Building.js',
+			  'objects/FireHydrant.js'],
 		desc: 'Various objects to add to the scene.'
 	},
 

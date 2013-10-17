@@ -4,6 +4,7 @@
 
 B.Model = B.Class.extend({
 	_clock: new THREE.Clock(),
+	_loadManager: null,
 	_objects: {
 		roads: [],
 		buildings: []
@@ -18,6 +19,7 @@ B.Model = B.Class.extend({
 
 		this._initThree();
 		this._initCamera();
+		this._initLoadManager();
 
 		return this;
 		
@@ -79,8 +81,12 @@ B.Model = B.Class.extend({
 		//this._controls.lookSpeed = 0.1;
 
 		this._controls = new B.DefaultControl(camera);
-
-
+	},
+	_initLoadManager: function () {
+		var manager = this._loadManager = new THREE.LoadingManager();
+		manager.onProgress = function (item, loaded, total) {
+			console.log(item, loaded, total);
+		};
 	},
 	_render: function () {
 		//this._controls.update(this._clock.getDelta()); // Update the controls based on a clock

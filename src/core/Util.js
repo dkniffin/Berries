@@ -139,7 +139,7 @@ B.Util = {
 		return (Object.prototype.toString.call(obj) === '[object Array]');
 	},
 
-	getTexturePath: function () {
+	getBerriesPath: function () {
 		var scripts = document.getElementsByTagName('script'),
 		berriesRe = /[\/^]berries[\-\._]?([\w\-\._]*)\.js\??/;
 
@@ -150,9 +150,19 @@ B.Util = {
 
 			if (matches) {
 				path = src.split(berriesRe)[0];
-				return (path ? path + '/' : '') + 'textures';
+				return (path ? path + '/' : '');
 			}
 		}
+	},
+
+	getTexturePath: function () {
+		return this.getBerriesPath() + 'textures';
+	},
+	getObjPath: function () {
+		return this.getBerriesPath() + 'obj';
+	},
+	getDaePath: function () {
+		return this.getBerriesPath() + 'dae';
 	},
 
 	emptyImageUrl: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='

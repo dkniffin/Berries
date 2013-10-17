@@ -8,7 +8,7 @@ B.OSMDataContainer = B.Class.extend({
 	_ways: [],
 	_relations: [],
 	options: {
-		render: [/*'roads', */'buildings'],
+		render: [/*'roads', */'buildings', 'fire_hydrants'],
 	},
 	initialize: function (data, options) {
 		options = B.setOptions(this, options);
@@ -21,7 +21,7 @@ B.OSMDataContainer = B.Class.extend({
 		for (var i in this.options.render) {
 			var feature = this.options.render[i];
 
-			var way;
+			var way, node;
 			switch (feature) {
 			case 'roads':
 				var roads = this.get('roads');
@@ -43,6 +43,15 @@ B.OSMDataContainer = B.Class.extend({
 					bldgSet.addObject(new B.Building(way, this, model));
 				}
 				bldgSet.addTo(model);
+				break;
+			case 'fire_hydrants':
+				var fhs = this.get('fire_hydrants');
+				for (var fhId in fhs) {
+					node = fhs[fhId];
+					//nodes = this.getNodesForWay(way);
+
+					new B.FireHydrant(node).addTo(model);
+				}
 				break;
 			}
 		}
@@ -70,6 +79,8 @@ B.OSMDataContainer = B.Class.extend({
 		// checking for highway values that correspond to roads
 		var features = [];
 		var wayid, way;
+		var nodeid, node;
+		// /var relid, rel;
 
 		switch (feature) {
 		case 'roads':
@@ -77,12 +88,12 @@ B.OSMDataContainer = B.Class.extend({
 				'primary', 'primary_link', 'secondary', 'secondary_link', 'tertiary',
 				'tertiary_link', 'residential', 'unclassified', 'service', 'track'];
 			for (wayid in this._ways) {
-				if (!this._ways[wayid].tags) {
+				way = this._ways[wayid];
+				if (!way.tags) {
 					continue;
 				}
 
-				if (roadValues.indexOf(this._ways[wayid].tags.highway) > -1) { // If roadValues contains tagVal
-					way = this._ways[wayid];
+				if (roadValues.indexOf(way.tags.highway) > -1) { // If roadValues contains tagVal
 					features.push(way);
 				}
 			}
@@ -90,16 +101,30 @@ B.OSMDataContainer = B.Class.extend({
 		case 'buildings':
 			// TODO: Add relations
 			for (wayid in this._ways) {
-				if (!this._ways[wayid].tags) {
+				way = this._ways[wayid];
+				if (!way.tags) {
 					continue;
 				}
 
-				var building = this._ways[wayid].tags.building;
+				var building = way.tags.building;
 				if (building && building !== 'no') {
-					way = this._ways[wayid];
 					features.push(way);
 				}
 			}
+			break;
+		case 'fire_hydrants':
+			for (nodeid in this._nodes) {
+				node = this._nodes[nodeid];
+				if (!node.tags) {
+					continue;
+				}
+
+				var emergency = node.tags.emergency;
+				if (emergency && emergency === 'fire_hydrant') {
+					features.push(node);
+				}
+			}
+			break;
 		}
 
 		return features;

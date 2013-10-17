@@ -171,7 +171,7 @@ B.Util = {
 		return (Object.prototype.toString.call(obj) === '[object Array]');
 	},
 
-	getTexturePath: function () {
+	getBerriesPath: function () {
 		var scripts = document.getElementsByTagName('script'),
 		berriesRe = /[\/^]berries[\-\._]?([\w\-\._]*)\.js\??/;
 
@@ -182,9 +182,19 @@ B.Util = {
 
 			if (matches) {
 				path = src.split(berriesRe)[0];
-				return (path ? path + '/' : '') + 'textures';
+				return (path ? path + '/' : '');
 			}
 		}
+	},
+
+	getTexturePath: function () {
+		return this.getBerriesPath() + 'textures';
+	},
+	getObjPath: function () {
+		return this.getBerriesPath() + 'obj';
+	},
+	getDaePath: function () {
+		return this.getBerriesPath() + 'dae';
 	},
 
 	emptyImageUrl: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='
@@ -1790,6 +1800,7 @@ B.DefaultControl = B.Class.extend({
 
 B.Model = B.Class.extend({
 	_clock: new THREE.Clock(),
+	_loadManager: null,
 	_objects: {
 		roads: [],
 		buildings: []
@@ -1804,6 +1815,7 @@ B.Model = B.Class.extend({
 
 		this._initThree();
 		this._initCamera();
+		this._initLoadManager();
 
 		return this;
 		
@@ -1865,8 +1877,12 @@ B.Model = B.Class.extend({
 		//this._controls.lookSpeed = 0.1;
 
 		this._controls = new B.DefaultControl(camera);
-
-
+	},
+	_initLoadManager: function () {
+		var manager = this._loadManager = new THREE.LoadingManager();
+		manager.onProgress = function (item, loaded, total) {
+			console.log(item, loaded, total);
+		};
 	},
 	_render: function () {
 		//this._controls.update(this._clock.getDelta()); // Update the controls based on a clock
@@ -2655,6 +2671,52 @@ B.building = function (id, options) {
 };
 
 
+B.FireHydrant = B.Class.extend({
+	_node: null,
+	options: {
+
+	},
+	initialize: function (node, options) {
+		options = B.setOptions(this, options);
+
+		this._node = node;
+
+		return this;
+	},
+	addTo: function (model) {
+
+		// Find where to put the model
+		var node = this._node;
+
+		var lat = Number(node.lat);
+		var lon = Number(node.lon);
+		var vec = model.getTerrain().worldVector(lat, lon);
+
+		var loader = new THREE.ColladaLoader();
+		console.log(B.Util.getDaePath() + '/fire_hydrant.dae');
+		loader.load(B.Util.getDaePath() + '/fire_hydrant.dae', function (result) {
+			
+			//console.log(vec);
+
+			var dae = result.scene;
+			dae.position = vec;
+
+			dae.updateMatrix();
+
+
+			//object.position.y = - 80;
+			console.log(result);
+			model.addObject(result);
+
+		});
+	}
+});
+
+B.firehydrant = function (id, options) {
+	return new B.Building(id, options);
+};
+
+
 B.ObjectSet = B.Class.extend({
 
 	_objects: [],
@@ -2729,7 +2791,7 @@ B.OSMDataContainer = B.Class.extend({
 	_ways: [],
 	_relations: [],
 	options: {
-		render: [/*'roads', */'buildings'],
+		render: [/*'roads', */'buildings', 'fire_hydrants'],
 	},
 	initialize: function (data, options) {
 		options = B.setOptions(this, options);
@@ -2742,7 +2804,7 @@ B.OSMDataContainer = B.Class.extend({
 		for (var i in this.options.render) {
 			var feature = this.options.render[i];
 
-			var way;
+			var way, node;
 			switch (feature) {
 			case 'roads':
 				var roads = this.get('roads');
@@ -2764,6 +2826,15 @@ B.OSMDataContainer = B.Class.extend({
 					bldgSet.addObject(new B.Building(way, this, model));
 				}
 				bldgSet.addTo(model);
+				break;
+			case 'fire_hydrants':
+				var fhs = this.get('fire_hydrants');
+				for (var fhId in fhs) {
+					node = fhs[fhId];
+					//nodes = this.getNodesForWay(way);
+
+					new B.FireHydrant(node).addTo(model);
+				}
 				break;
 			}
 		}
@@ -2791,6 +2862,8 @@ B.OSMDataContainer = B.Class.extend({
 		// checking for highway values that correspond to roads
 		var features = [];
 		var wayid, way;
+		var nodeid, node;
+		// /var relid, rel;
 
 		switch (feature) {
 		case 'roads':
@@ -2798,12 +2871,12 @@ B.OSMDataContainer = B.Class.extend({
 				'primary', 'primary_link', 'secondary', 'secondary_link', 'tertiary',
 				'tertiary_link', 'residential', 'unclassified', 'service', 'track'];
 			for (wayid in this._ways) {
-				if (!this._ways[wayid].tags) {
+				way = this._ways[wayid];
+				if (!way.tags) {
 					continue;
 				}
 
-				if (roadValues.indexOf(this._ways[wayid].tags.highway) > -1) { // If roadValues contains tagVal
-					way = this._ways[wayid];
+				if (roadValues.indexOf(way.tags.highway) > -1) { // If roadValues contains tagVal
 					features.push(way);
 				}
 			}
@@ -2811,16 +2884,30 @@ B.OSMDataContainer = B.Class.extend({
 		case 'buildings':
 			// TODO: Add relations
 			for (wayid in this._ways) {
-				if (!this._ways[wayid].tags) {
+				way = this._ways[wayid];
+				if (!way.tags) {
 					continue;
 				}
 
-				var building = this._ways[wayid].tags.building;
+				var building = way.tags.building;
 				if (building && building !== 'no') {
-					way = this._ways[wayid];
 					features.push(way);
 				}
 			}
+			break;
+		case 'fire_hydrants':
+			for (nodeid in this._nodes) {
+				node = this._nodes[nodeid];
+				if (!node.tags) {
+					continue;
+				}
+
+				var emergency = node.tags.emergency;
+				if (emergency && emergency === 'fire_hydrant') {
+					features.push(node);
+				}
+			}
+			break;
 		}
 
 		return features;
