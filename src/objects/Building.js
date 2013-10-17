@@ -101,7 +101,7 @@ B.Building = B.Class.extend({
 		//var groundLevel = 3000;
 		var roofLevel = groundLevel + height;
 
-		var clockwise = this._isClockWise(outlinePoints);
+		var clockwise = THREE.Shape.Utils.isClockWise(outlinePoints);
 
 		if (clockwise) {
 			// Reverse CCW point sets
@@ -162,21 +162,8 @@ B.Building = B.Class.extend({
 		buildingGeometry.computeFaceNormals();
 
 
-		this._mesh = new THREE.Mesh(buildingGeometry, new THREE.MeshFaceMaterial(this._materials));
+		//this._mesh = new THREE.Mesh(buildingGeometry, new THREE.MeshFaceMaterial(this._materials));
 		
-		model.addObject(this._mesh);
-
-		// Outline
-		/*
-		var geometry = new THREE.Geometry();
-		geometry.vertices = outlinePoints;
-
-		var line = new THREE.Line(geometry, new THREE.LineBasicMaterial({
-			color: 0xff0000
-		}));
-
-		model.addObject(line);
-		*/
 		return this;
 
 	},

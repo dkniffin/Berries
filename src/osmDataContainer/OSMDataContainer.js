@@ -42,7 +42,7 @@ B.OSMDataContainer = B.Class.extend({
 
 					bldgSet.addObject(new B.Building(way, this, model));
 				}
-				//bldgSet.addTo(model);
+				bldgSet.addTo(model);
 				break;
 			}
 		}

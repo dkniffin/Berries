@@ -2490,7 +2490,7 @@ B.Building = B.Class.extend({
 		//var groundLevel = 3000;
 		var roofLevel = groundLevel + height;
 
-		var clockwise = this._isClockWise(outlinePoints);
+		var clockwise = THREE.Shape.Utils.isClockWise(outlinePoints);
 
 		if (clockwise) {
 			// Reverse CCW point sets
@@ -2551,21 +2551,8 @@ B.Building = B.Class.extend({
 		buildingGeometry.computeFaceNormals();
 
 
-		this._mesh = new THREE.Mesh(buildingGeometry, new THREE.MeshFaceMaterial(this._materials));
+		//this._mesh = new THREE.Mesh(buildingGeometry, new THREE.MeshFaceMaterial(this._materials));
 		
-		model.addObject(this._mesh);
-
-		// Outline
-		/*
-		var geometry = new THREE.Geometry();
-		geometry.vertices = outlinePoints;
-
-		var line = new THREE.Line(geometry, new THREE.LineBasicMaterial({
-			color: 0xff0000
-		}));
-
-		model.addObject(line);
-		*/
 		return this;
 
 	},
@@ -2660,15 +2647,20 @@ B.roadset = function (id, options) {
 
 B.BuildingSet = B.ObjectSet.extend({
 	addTo: function (model) {
-		//var geo = this.getMergedGeometries();
+		var geo = this.getMergedGeometries();
 		//var mats = this.getMergedMaterials();
 		// Create a mesh
-		//var mesh = new THREE.Mesh(geo, new THREE.MeshFaceMaterial(mats));
+		var mesh = new THREE.Mesh(geo, new THREE.MeshFaceMaterial(
+				[new THREE.MeshBasicMaterial({color: 0x841F27, side: THREE.DoubleSide }),
+				 new THREE.MeshBasicMaterial({color: 0xF2F2F2, side: THREE.DoubleSide })
+				 ]));
+		/*
 		for (var i in this._objects) {
 			model.addObject(this._objects[i]._mesh);
 		}
+		*/
 		// Add it to the model
-		//model.addObject(mesh);
+		model.addObject(mesh);
 	}
 });
 
@@ -2720,7 +2712,7 @@ B.OSMDataContainer = B.Class.extend({
 
 					bldgSet.addObject(new B.Building(way, this, model));
 				}
-				//bldgSet.addTo(model);
+				bldgSet.addTo(model);
 				break;
 			}
 		}
