@@ -1806,7 +1806,7 @@ B.Model = B.Class.extend({
 		this._initThree();
 		this._initCamera();
 
-		var lightPos = new THREE.Vector3(2000, 5000, 7065);
+		var lightPos = new THREE.Vector3(2000, 4000, 10065);
 
 		new B.Light(lightPos).addTo(this);
 
@@ -1846,12 +1846,13 @@ B.Model = B.Class.extend({
 		this._renderer = new THREE.WebGLRenderer();
 		this._renderer.setSize(window.innerWidth, window.innerHeight);
 
-		//this._renderer.gammaInput = true;
-		//this._renderer.gammaOutput = true;
-		this._renderer.physicallyBasedShading = true;
+		this._renderer.gammaInput = true;
+		this._renderer.gammaOutput = true;
+		//this._renderer.physicallyBasedShading = true;
 
 
 		this._renderer.shadowMapEnabled = true;
+		this._renderer.shadowMapSoft = true;
 		//this._renderer.shadowCameraNear = 3;
 		//this._renderer.shadowCameraFar = 20000;
 		//this._renderer.shadowCameraFov = 50;
@@ -1870,8 +1871,8 @@ B.Model = B.Class.extend({
 
 		// Position the camera
 		// TODO: Make this an option or something
-		camera.position.x = 2000;
-		camera.position.y = 5000;
+		camera.position.x = 3000;
+		camera.position.y = 3000;
 		camera.position.z = 7065;
 		// Look at the center of campus
 		camera.lookAt(new THREE.Vector3(4311, 1640, 7065));
@@ -2331,7 +2332,7 @@ B.Light = B.Class.extend({
 		model.addObject(hemiLight);
 */
 
-		var dirLight = new THREE.DirectionalLight(0xffffff);
+		var dirLight = new THREE.DirectionalLight(0xffffff, 1);
 		dirLight.position = this._position;
 		dirLight.target.position = new THREE.Vector3(4311, 1640, 7065);
 
@@ -2339,19 +2340,19 @@ B.Light = B.Class.extend({
 		dirLight.shadowCameraVisible = true;
 
 
-		dirLight.shadowMapWidth = 2048;
-		dirLight.shadowMapHeight = 2048;
+		dirLight.shadowMapWidth = 8192;
+		dirLight.shadowMapHeight = 8192;
 
-		var d = 70;
+		var d = 10000;
 
 		dirLight.shadowCameraLeft = -d;
 		dirLight.shadowCameraRight = d;
 		dirLight.shadowCameraTop = d;
 		dirLight.shadowCameraBottom = -d;
 
-		dirLight.shadowCameraFar = 20000;
+		dirLight.shadowCameraFar = 5000;
 		dirLight.shadowBias = -0.0001;
-		dirLight.shadowDarkness = 0.35;
+		dirLight.shadowDarkness = 0.5;
 
 
 		model.addObject(dirLight);
