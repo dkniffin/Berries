@@ -20,6 +20,9 @@ B.FireHydrant = B.Class.extend({
 		var vec = model.getTerrain().worldVector(lat, lon);
 
 		var loader = new THREE.ColladaLoader();
+
+
+		loader.options.convertUpAxis = true;
 		console.log(B.Util.getDaePath() + '/fire_hydrant.dae');
 		loader.load(B.Util.getDaePath() + '/fire_hydrant.dae', function (result) {
 			
@@ -27,6 +30,8 @@ B.FireHydrant = B.Class.extend({
 
 			var dae = result.scene;
 			dae.position = vec;
+
+			dae.scale.x = dae.scale.y = dae.scale.z = 25.0;
 
 			dae.updateMatrix();
 
