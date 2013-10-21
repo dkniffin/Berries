@@ -114,7 +114,7 @@ B.Model = B.Class.extend({
 		this._controls = new B.DefaultControl(camera);
 	},
 	_initLoadManager: function () {
-		var manager = this._loadManager = new THREE.LoadingManager();
+		var manager = this._loadManager = new THREE.ColladaLoader();
 		manager.onProgress = function (item, loaded, total) {
 			console.log(item, loaded, total);
 		};

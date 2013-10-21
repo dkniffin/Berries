@@ -19,26 +19,23 @@ B.FireHydrant = B.Class.extend({
 		var lon = Number(node.lon);
 		var vec = model.getTerrain().worldVector(lat, lon);
 
-		var loader = new THREE.ColladaLoader();
-
+		var loader = model._loadManager;
 
 		loader.options.convertUpAxis = true;
-		console.log(B.Util.getDaePath() + '/fire_hydrant.dae');
-		loader.load(B.Util.getDaePath() + '/fire_hydrant.dae', function (result) {
+		loader.load(B.Util.getDaePath() + '/fire_hydrant_red.dae', function (result) {
 			
 			//console.log(vec);
 
 			var dae = result.scene;
 			dae.position = vec;
 
-			dae.scale.x = dae.scale.y = dae.scale.z = 25.0;
+			//dae.scale.x = dae.scale.y = dae.scale.z = 0.02539999969303608;
 
 			dae.updateMatrix();
 
 
 			//object.position.y = - 80;
-			console.log(result);
-			model.addObject(result);
+			model.addObject(dae);
 
 		});
 	}

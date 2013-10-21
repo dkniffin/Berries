@@ -47,7 +47,7 @@ B.Building = B.Class.extend({
 		var height = this._getHeight(way.tags);
 		
 
-		// TODO: Change this to use a centerpoint of the building
+		// TODO: Change this to use the lowest point of the building
 		var groundLevel = outlinePoints[0].y;
 		var roofLevel = groundLevel + height;
 

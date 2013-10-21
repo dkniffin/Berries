@@ -1910,7 +1910,7 @@ B.Model = B.Class.extend({
 		this._controls = new B.DefaultControl(camera);
 	},
 	_initLoadManager: function () {
-		var manager = this._loadManager = new THREE.LoadingManager();
+		var manager = this._loadManager = new THREE.ColladaLoader();
 		manager.onProgress = function (item, loaded, total) {
 			console.log(item, loaded, total);
 		};
@@ -2554,7 +2554,7 @@ B.Building = B.Class.extend({
 		var height = this._getHeight(way.tags);
 		
 
-		// TODO: Change this to use a centerpoint of the building
+		// TODO: Change this to use the lowest point of the building
 		var groundLevel = outlinePoints[0].y;
 		var roofLevel = groundLevel + height;
 
@@ -2745,26 +2745,23 @@ B.FireHydrant = B.Class.extend({
 		var lon = Number(node.lon);
 		var vec = model.getTerrain().worldVector(lat, lon);
 
-		var loader = new THREE.ColladaLoader();
-
+		var loader = model._loadManager;
 
 		loader.options.convertUpAxis = true;
-		console.log(B.Util.getDaePath() + '/fire_hydrant.dae');
-		loader.load(B.Util.getDaePath() + '/fire_hydrant.dae', function (result) {
+		loader.load(B.Util.getDaePath() + '/fire_hydrant_red.dae', function (result) {
 			
 			//console.log(vec);
 
 			var dae = result.scene;
 			dae.position = vec;
 
-			dae.scale.x = dae.scale.y = dae.scale.z = 25.0;
+			//dae.scale.x = dae.scale.y = dae.scale.z = 0.02539999969303608;
 
 			dae.updateMatrix();
 
 
 			//object.position.y = - 80;
-			console.log(result);
-			model.addObject(result);
+			model.addObject(dae);
 
 		});
 	}
