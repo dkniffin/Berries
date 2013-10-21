@@ -557,11 +557,11 @@ B.Materials = {
 };
 
 // Colored Materials
-B.Materials.addMaterial('BRICKRED', new THREE.MeshBasicMaterial({color: 0x841F27, side: THREE.DoubleSide }));
-B.Materials.addMaterial('CONCRETEWHITE', new THREE.MeshBasicMaterial({color: 0xF2F2F2, side: THREE.DoubleSide }));
-B.Materials.addMaterial('GLASSBLUE', new THREE.MeshBasicMaterial({color: 0x009DDD, side: THREE.DoubleSide }));
-B.Materials.addMaterial('ASPHALTGREY', new THREE.MeshBasicMaterial({color: 0x757575, side: THREE.DoubleSide }));
-B.Materials.addMaterial('WOODBROWN', new THREE.MeshBasicMaterial({color: 0xAE8F60, side: THREE.DoubleSide }));
+B.Materials.addMaterial('BRICKRED', new THREE.MeshPhongMaterial({color: 0x841F27, side: THREE.DoubleSide }));
+B.Materials.addMaterial('CONCRETEWHITE', new THREE.MeshPhongMaterial({color: 0xF2F2F2, side: THREE.DoubleSide }));
+B.Materials.addMaterial('GLASSBLUE', new THREE.MeshPhongMaterial({color: 0x009DDD, side: THREE.DoubleSide }));
+B.Materials.addMaterial('ASPHALTGREY', new THREE.MeshPhongMaterial({color: 0x757575, side: THREE.DoubleSide }));
+B.Materials.addMaterial('WOODBROWN', new THREE.MeshPhongMaterial({color: 0xAE8F60, side: THREE.DoubleSide }));
 
 /*
  * B.Point represents a point with x and y coordinates.
@@ -1801,6 +1801,7 @@ B.DefaultControl = B.Class.extend({
 B.Model = B.Class.extend({
 	_clock: new THREE.Clock(),
 	_loadManager: null,
+	_camera: null,
 	_objects: {
 		roads: [],
 		buildings: []
@@ -1816,6 +1817,23 @@ B.Model = B.Class.extend({
 		this._initThree();
 		this._initCamera();
 		this._initLoadManager();
+
+
+
+		/*
+		var lightPos = new THREE.Vector3(2000, 4000, 10065);
+
+		new B.Light(lightPos).addTo(this);
+		*/
+
+		var light = new B.Light();
+		light._light.position = new THREE.Vector3(0, 0, 0);
+		light._light.target.position = new THREE.Vector3(-1, -6000, -1); // This should determine the sun angle
+
+		//light.addTo(this);
+		this._camera.add(light._light);
+
+		this._scene.add(this._camera);
 
 		return this;
 		
@@ -1853,6 +1871,18 @@ B.Model = B.Class.extend({
 		this._renderer = new THREE.WebGLRenderer();
 		this._renderer.setSize(window.innerWidth, window.innerHeight);
 
+		this._renderer.gammaInput = true;
+		this._renderer.gammaOutput = true;
+		//this._renderer.physicallyBasedShading = true;
+
+
+		this._renderer.shadowMapEnabled = true;
+		this._renderer.shadowMapSoft = true;
+		//this._renderer.shadowCameraNear = 3;
+		//this._renderer.shadowCameraFar = 20000;
+		//this._renderer.shadowCameraFov = 50;
+		//this._renderer.shadowMapCullFace = THREE.CullFaceBack;
+
 		// Empty the rendering container
 		this._container.innerHTML = '';
 
@@ -1865,8 +1895,9 @@ B.Model = B.Class.extend({
 		var camera = this._camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 20000);
 
 		// Position the camera
-		camera.position.x = 2000;
-		camera.position.y = 5000;
+		// TODO: Make this an option or something
+		camera.position.x = 3000;
+		camera.position.y = 3000;
 		camera.position.z = 7065;
 		// Look at the center of campus
 		camera.lookAt(new THREE.Vector3(4311, 1640, 7065));
@@ -1948,6 +1979,9 @@ B.Terrain = B.Class.extend({
 
 		this._updateGeometry();
 		this._createMesh();
+
+		this._mesh.castShadow = true;
+		this._mesh.receiveShadow = true;
 
 		this._mesh.translateX(this._dataWidthInMeters / 2);
 		this._mesh.translateZ(this._dataDepthInMeters / 2);
@@ -2262,7 +2296,7 @@ B.Terrain = B.Class.extend({
 		texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
 		texture.repeat.set(Math.round(this._dataDepthInMeters / heightOfTexture),
 				Math.round(this._dataWidthInMeters / widthOfTexture));
-		this._mesh = new THREE.Mesh(this._geometry, new THREE.MeshBasicMaterial({
+		this._mesh = new THREE.Mesh(this._geometry, new THREE.MeshPhongMaterial({
 			map: texture
 			//color: 0x0000ff
 		}));
@@ -2306,41 +2340,60 @@ B.terrain = function (id, options) {
  */
 
 B.Light = B.Class.extend({
+	_position: null,
+	_light: null,
 	options: {
 	},
-	initialize: function (lat, lon, ele, options) {
+	initialize: function (options) {
 		options = B.setOptions(this, options);
 
-		this._lat = lat;
-		this._lon = lon;
-		this._ele = ele;
+		var dirLight = this._light = new THREE.DirectionalLight(0xffffff, 1);
+		//dirLight.position = this._position;
+		//dirLight.target.position = new THREE.Vector3(4311, 1640, 7065);
+
+		dirLight.castShadow = true;
+		dirLight.shadowCameraVisible = true;
+
+
+		dirLight.shadowMapWidth = 4096;
+		dirLight.shadowMapHeight = 4096;
+
+		var d = 1000;
+
+		dirLight.shadowCameraLeft = -d;
+		dirLight.shadowCameraRight = d;
+		dirLight.shadowCameraTop = d;
+		dirLight.shadowCameraBottom = -d;
+
+		dirLight.shadowCameraFar = 500;
+		dirLight.shadowCameraNear = -500;
+		dirLight.shadowBias = 0.001;
+		dirLight.shadowDarkness = 0.5;
+
+		//this._position = position;
 		
 		return this;
 	},
 	addTo: function (model) {
+
+/*
+		var	hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.6);
+		hemiLight.color.setHSL(0.6, 1, 0.6);
+		hemiLight.groundColor.setHSL(0.095, 1, 0.75);
+		hemiLight.position.set(0, 3000, 0);
+		hemiLight.visible = true;
+		model.addObject(hemiLight);
+*/
+
 		
-		var m = this._latlon2meters(this._lat, this._lon);
-		var x = m.x,
-			z = m.y,
-			y = this._ele;
 
 
-		var directionalLight = new THREE.DirectionalLight(0xffffff);
-		directionalLight.position.set(x, y, z).normalize();
+		model.addObject(this._light);
 
-		model.addObject(directionalLight);
+
 		return this;
-	},
-	_latlon2meters: function (lat, lon) {
-		// Converts a lat,lon set to a x,y (in meters) set
-		// TODO: Move this out of Terrain.js
-		// TODO: Fix this. Lon doesn't convert that easily. This 
-		// value is specific to locations at about 40 N or S
-		return {
-			x: lat * 111000,
-			y: lon * 85000
-		};
-	},
+
+	}
 });
 
 B.light = function (id, options) {
@@ -2772,6 +2825,8 @@ B.BuildingSet = B.ObjectSet.extend({
 		var geo = this.getMergedGeometries();
 		// Create a mesh
 		var mesh = new THREE.Mesh(geo, new THREE.MeshFaceMaterial(B.Materials.MATERIALS));
+		mesh.castShadow = true;
+		mesh.receiveShadow = true;
 		// Add it to the model
 		model.addObject(mesh);
 	}

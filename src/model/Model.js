@@ -5,6 +5,7 @@
 B.Model = B.Class.extend({
 	_clock: new THREE.Clock(),
 	_loadManager: null,
+	_camera: null,
 	_objects: {
 		roads: [],
 		buildings: []
@@ -20,6 +21,23 @@ B.Model = B.Class.extend({
 		this._initThree();
 		this._initCamera();
 		this._initLoadManager();
+
+
+
+		/*
+		var lightPos = new THREE.Vector3(2000, 4000, 10065);
+
+		new B.Light(lightPos).addTo(this);
+		*/
+
+		var light = new B.Light();
+		light._light.position = new THREE.Vector3(0, 0, 0);
+		light._light.target.position = new THREE.Vector3(-1, -6000, -1); // This should determine the sun angle
+
+		//light.addTo(this);
+		this._camera.add(light._light);
+
+		this._scene.add(this._camera);
 
 		return this;
 		
@@ -57,6 +75,18 @@ B.Model = B.Class.extend({
 		this._renderer = new THREE.WebGLRenderer();
 		this._renderer.setSize(window.innerWidth, window.innerHeight);
 
+		this._renderer.gammaInput = true;
+		this._renderer.gammaOutput = true;
+		//this._renderer.physicallyBasedShading = true;
+
+
+		this._renderer.shadowMapEnabled = true;
+		this._renderer.shadowMapSoft = true;
+		//this._renderer.shadowCameraNear = 3;
+		//this._renderer.shadowCameraFar = 20000;
+		//this._renderer.shadowCameraFov = 50;
+		//this._renderer.shadowMapCullFace = THREE.CullFaceBack;
+
 		// Empty the rendering container
 		this._container.innerHTML = '';
 
@@ -69,8 +99,9 @@ B.Model = B.Class.extend({
 		var camera = this._camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 20000);
 
 		// Position the camera
-		camera.position.x = 2000;
-		camera.position.y = 5000;
+		// TODO: Make this an option or something
+		camera.position.x = 3000;
+		camera.position.y = 3000;
 		camera.position.z = 7065;
 		// Look at the center of campus
 		camera.lookAt(new THREE.Vector3(4311, 1640, 7065));
