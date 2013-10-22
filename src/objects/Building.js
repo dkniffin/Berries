@@ -47,8 +47,13 @@ B.Building = B.Class.extend({
 		var height = this._getHeight(way.tags);
 		
 
-		// TODO: Change this to use the lowest point of the building
+		// Use the lowest point of the building
 		var groundLevel = outlinePoints[0].y;
+		for (i in outlinePoints) {
+			if (outlinePoints[i].y < groundLevel) {
+				groundLevel = outlinePoints[i].y;
+			}
+		}
 		var roofLevel = groundLevel + height;
 
 		// Determine if the nodes are defined in a clockwise direction or CCW
@@ -122,7 +127,7 @@ B.Building = B.Class.extend({
 			lat = Number(node.lat);
 			lon = Number(node.lon);
 			vec = model.getTerrain().worldVector(lat, lon);
-			vec.y += 1;
+			//vec.y += 1;
 			outlinePoints.push(vec);
 		}
 		return outlinePoints;

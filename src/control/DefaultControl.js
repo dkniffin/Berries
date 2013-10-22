@@ -15,9 +15,9 @@ B.DefaultControl = B.Class.extend({
 		maxCamHeight: Infinity,
 		keys: [33, 34, 35, 36, 38, 40, 39, 37, 38, 40, 39, 37],
 		zoomIncrement: 10,
-		panIncrement: 10,
+		panIncrement: 50,
 		pitchIncrement: 0.1,
-		maxZoomInHeight: 1800,
+		maxZoomInHeight: 1600,
 		maxZoomOutHeight: 10000
 	},
 	initialize: function (camera, domElement) {

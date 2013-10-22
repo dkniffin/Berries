@@ -1635,9 +1635,9 @@ B.DefaultControl = B.Class.extend({
 		maxCamHeight: Infinity,
 		keys: [33, 34, 35, 36, 38, 40, 39, 37, 38, 40, 39, 37],
 		zoomIncrement: 10,
-		panIncrement: 10,
+		panIncrement: 50,
 		pitchIncrement: 0.1,
-		maxZoomInHeight: 1800,
+		maxZoomInHeight: 1600,
 		maxZoomOutHeight: 10000
 	},
 	initialize: function (camera, domElement) {
@@ -1959,7 +1959,7 @@ B.Terrain = B.Class.extend({
 	_eleBounds: {},
 
 	options: {
-		gridSpace: 100, // In meters
+		gridSpace: 50, // In meters
 		dataType: 'SRTM_vector'
 
 	},
@@ -1977,7 +1977,9 @@ B.Terrain = B.Class.extend({
 
 		this._geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
 
+		//THREE.GeometryUtils.triangulateQuads(this._geometry);
 		this._updateGeometry();
+		//THREE.GeometryUtils.triangulateQuads(this._geometry);
 		this._createMesh();
 
 		this._mesh.castShadow = true;
@@ -2025,7 +2027,9 @@ B.Terrain = B.Class.extend({
 		var ele; // The return value
 
 		if (!this._bounds.contains([lat, lon])) {
-			throw new Error('Coordinates outside of bounds');
+			//throw new Error('Coordinates outside of bounds');
+			console.error('Coordinates outside of bounds');
+			return 0;
 		}
 
 		if (!xym) {
@@ -2046,16 +2050,35 @@ B.Terrain = B.Class.extend({
 			v3 = this._gridHeightLookup[lookupXceil][lookupYfloor],
 			v4 = this._gridHeightLookup[lookupXceil][lookupYceil];
 
-		/* This code is an attempt at a real linear interpolation, but I couldn't get it working.
+		
+		/*
+		//This code is an attempt at a real linear interpolation, but I couldn't get it working.
 		var t = v2 - v1;
 		var s = v3 - v1;
 		var E = v3 +  t * (v4 - v3);
 		var F = v1 + t * (v2 - v1);
 		ele =  E + s * (F - E);
 		*/
+		
 
 		// Simply estimate the value from an average of the four surrounding points
 		ele = (v1 + v2 + v3 + v4) / 4;
+
+
+		
+		/*
+		// Use raycasting
+		var caster = new THREE.Raycaster(
+				new THREE.Vector3(xym.x, 100000, xym.y),
+				new THREE.Vector3(0, 1, 0));
+		var intersects = caster.intersectObject(this._mesh);
+		//if (intersects.length !== 0) {
+		console.log(intersects);
+		//}
+		*/
+	
+
+
 
 		return ele;
 	},
@@ -2297,7 +2320,8 @@ B.Terrain = B.Class.extend({
 		texture.repeat.set(Math.round(this._dataDepthInMeters / heightOfTexture),
 				Math.round(this._dataWidthInMeters / widthOfTexture));
 		this._mesh = new THREE.Mesh(this._geometry, new THREE.MeshPhongMaterial({
-			map: texture
+			map: texture//,
+			//wireframe: true
 			//color: 0x0000ff
 		}));
 	},
@@ -2554,8 +2578,13 @@ B.Building = B.Class.extend({
 		var height = this._getHeight(way.tags);
 		
 
-		// TODO: Change this to use the lowest point of the building
+		// Use the lowest point of the building
 		var groundLevel = outlinePoints[0].y;
+		for (i in outlinePoints) {
+			if (outlinePoints[i].y < groundLevel) {
+				groundLevel = outlinePoints[i].y;
+			}
+		}
 		var roofLevel = groundLevel + height;
 
 		// Determine if the nodes are defined in a clockwise direction or CCW
@@ -2629,7 +2658,7 @@ B.Building = B.Class.extend({
 			lat = Number(node.lat);
 			lon = Number(node.lon);
 			vec = model.getTerrain().worldVector(lat, lon);
-			vec.y += 1;
+			//vec.y += 1;
 			outlinePoints.push(vec);
 		}
 		return outlinePoints;
