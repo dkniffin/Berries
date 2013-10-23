@@ -2313,7 +2313,7 @@ B.Terrain = B.Class.extend({
 
 		this._mesh = new THREE.Mesh(this._geometry, dirtMat);
 		*/
-		var texture = THREE.ImageUtils.loadTexture(B.Util.getTexturePath() + '/dirt3.jpg');
+		var texture = THREE.ImageUtils.loadTexture(B.Util.getTexturePath() + '/seamless-grass.jpg');
 		var widthOfTexture = 10; // meters
 		var heightOfTexture = 10; // meters
 		texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
