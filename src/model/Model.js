@@ -6,11 +6,10 @@ B.Model = B.Class.extend({
 	_clock: new THREE.Clock(),
 	_loadManager: null,
 	_camera: null,
-	_objects: {
-		roads: [],
-		buildings: []
-	},
+	_origin: null,
 	options: {
+		initialCameraPos: new B.LatLng(39.97, -105.26),
+		initialCameraLook: new B.LatLng(40.0, -105.26)
 	},
 
 	initialize: function (id, options) {
@@ -21,14 +20,6 @@ B.Model = B.Class.extend({
 		this._initThree();
 		this._initCamera();
 		this._initLoadManager();
-
-
-
-		/*
-		var lightPos = new THREE.Vector3(2000, 4000, 10065);
-
-		new B.Light(lightPos).addTo(this);
-		*/
 
 		var light = new B.Light();
 		light._light.position = new THREE.Vector3(0, 0, 0);
@@ -43,16 +34,26 @@ B.Model = B.Class.extend({
 		
 	},
 	addTerrain: function (terrain) {
+		// Save the terrain reference locally
 		this._terrain = terrain;
 
-		
+		// Update the origin
+		this._origin = terrain._origin;
+
+		// Update the camera position
+		var xym = terrain._latlon2meters(this.options.initialCameraPos);
+		this._camera.position = new THREE.Vector3(xym.x, xym.y, 3000);
+
+		xym = terrain._latlon2meters(this.options.initialCameraLook);
+		this._camera.lookAt(new THREE.Vector3(xym.x, xym.y, 1640));
+
+		//this._camera.position = new THREE.Vector3(0, 0, 0);
+
+
 		this._scene.add(terrain._mesh);
 	},
 	getTerrain: function () {
 		return this._terrain;
-	},
-	addRoad: function (road) {
-		this._objects.roads.push(road);
 	},
 	addObject: function (object) {
 		this._scene.add(object);
@@ -96,7 +97,8 @@ B.Model = B.Class.extend({
 	},
 	_initCamera: function () {
 		// Create the camera
-		var camera = this._camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 20000);
+		var camera = this._camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 500000);
+		camera.up.set(0, 0, 1);
 
 		// Position the camera
 		// TODO: Make this an option or something

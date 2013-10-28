@@ -15,10 +15,10 @@ B.DefaultControl = B.Class.extend({
 		maxCamHeight: Infinity,
 		keys: [33, 34, 35, 36, 38, 40, 39, 37, 38, 40, 39, 37],
 		zoomIncrement: 10,
-		panIncrement: 50,
+		panIncrement: 500,
 		pitchIncrement: 0.1,
 		maxZoomInHeight: 1600,
-		maxZoomOutHeight: 10000
+		maxZoomOutHeight: 50000
 	},
 	initialize: function (camera, domElement) {
 		this._camera = camera;
@@ -46,34 +46,34 @@ B.DefaultControl = B.Class.extend({
 		B.DomEvent.on(this._domElement, 'touchmove', this._touchmove, this);
 	},
 	zoomup: function () {
-		this._camera.position.y += this.options.zoomIncrement;
-		if (this._camera.position.y > this.options.maxZoomOutHeight) {
-			this._camera.position.y = this.options.maxZoomOutHeight;
+		this._camera.position.z += this.options.zoomIncrement;
+		if (this._camera.position.z > this.options.maxZoomOutHeight) {
+			this._camera.position.z = this.options.maxZoomOutHeight;
 		}
 	},
 	zoomdown: function () {
-		this._camera.position.y -= this.options.zoomIncrement;
-		if (this._camera.position.y < this.options.maxZoomInHeight) {
-			this._camera.position.y = this.options.maxZoomInHeight;
+		this._camera.position.z -= this.options.zoomIncrement;
+		if (this._camera.position.z < this.options.maxZoomInHeight) {
+			this._camera.position.z = this.options.maxZoomInHeight;
 		}
 	},
 	zoominmax: function () {
-		this._camera.position.y = this.options.maxZoomInHeight;
+		this._camera.position.z = this.options.maxZoomInHeight;
 	},
 	zoomoutmax: function () {
-		this._camera.position.y = this.options.maxZoomOutHeight;
+		this._camera.position.z = this.options.maxZoomOutHeight;
 	},
 	pannorth: function () {
-		this._camera.position.x += this.options.panIncrement;
+		this._camera.position.y += this.options.panIncrement;
 	},
 	pansouth: function () {
-		this._camera.position.x -= this.options.panIncrement;
+		this._camera.position.y -= this.options.panIncrement;
 	},
 	paneast: function () {
-		this._camera.position.z += this.options.panIncrement;
+		this._camera.position.x += this.options.panIncrement;
 	},
 	panwest: function () {
-		this._camera.position.z -= this.options.panIncrement;
+		this._camera.position.x -= this.options.panIncrement;
 	},
 	pitchup: function () {
 		this._camera.rotation.y -= this.options.pitchIncrement;
