@@ -1956,6 +1956,8 @@ B.Terrain = B.Class.extend({
 			this._geometry.vertices[i].z = this._data[i] / 65535 * 4347;
 		}
 		THREE.GeometryUtils.triangulateQuads(this._geometry);
+		this._geometry.computeFaceNormals();
+		this._geometry.computeVertexNormals();
 
 
 		this._createMesh();
@@ -1981,11 +1983,11 @@ B.Terrain = B.Class.extend({
 		}
 
 		var rc = new THREE.Raycaster(
-			new THREE.Vector3(xym.x, xym.y, 1000000),
-			new THREE.Vector3(0, 0, 1)
+			new THREE.Vector3(xym.x, xym.y, 5000),
+			new THREE.Vector3(0, 0, -1)
 			);
 		
-		ele = rc.intersectObject(this._mesh, true);
+		ele = rc.intersectObject(this._mesh);
 		console.log(ele);
 
 		return ele;
