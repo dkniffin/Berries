@@ -23,7 +23,7 @@ B.Model = B.Class.extend({
 
 		var light = new B.Light();
 		light._light.position = new THREE.Vector3(0, 0, 0);
-		light._light.target.position = new THREE.Vector3(-1, -6000, -1); // This should determine the sun angle
+		light._light.target.position = new THREE.Vector3(-1, -1, -6000); // This should determine the sun angle
 
 		//light.addTo(this);
 		this._camera.add(light._light);
@@ -100,19 +100,7 @@ B.Model = B.Class.extend({
 		var camera = this._camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 500000);
 		camera.up.set(0, 0, 1);
 
-		// Position the camera
-		// TODO: Make this an option or something
-		camera.position.x = 3000;
-		camera.position.y = 3000;
-		camera.position.z = 7065;
-		// Look at the center of campus
-		camera.lookAt(new THREE.Vector3(4311, 1640, 7065));
-
-		// First person controls
-		//this._controls = new THREE.FirstPersonControls(camera);
-		//this._controls.movementSpeed = 3000;
-		//this._controls.lookSpeed = 0.1;
-
+		// Init the controls
 		this._controls = new B.DefaultControl(camera);
 	},
 	_initLoadManager: function () {

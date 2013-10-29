@@ -76,10 +76,10 @@ B.DefaultControl = B.Class.extend({
 		this._camera.position.x -= this.options.panIncrement;
 	},
 	pitchup: function () {
-		this._camera.rotation.y -= this.options.pitchIncrement;
+		this._camera.rotation.x += this.options.pitchIncrement;
 	},
 	pitchdown: function () {
-		this._camera.rotation.y += this.options.pitchIncrement;
+		this._camera.rotation.x -= this.options.pitchIncrement;
 	},
 	rotatecw: function () { },
 	rotateccw: function () { },

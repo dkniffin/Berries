@@ -1696,10 +1696,10 @@ B.DefaultControl = B.Class.extend({
 		this._camera.position.x -= this.options.panIncrement;
 	},
 	pitchup: function () {
-		this._camera.rotation.y -= this.options.pitchIncrement;
+		this._camera.rotation.x += this.options.pitchIncrement;
 	},
 	pitchdown: function () {
-		this._camera.rotation.y += this.options.pitchIncrement;
+		this._camera.rotation.x -= this.options.pitchIncrement;
 	},
 	rotatecw: function () { },
 	rotateccw: function () { },
@@ -1819,7 +1819,7 @@ B.Model = B.Class.extend({
 
 		var light = new B.Light();
 		light._light.position = new THREE.Vector3(0, 0, 0);
-		light._light.target.position = new THREE.Vector3(-1, -6000, -1); // This should determine the sun angle
+		light._light.target.position = new THREE.Vector3(-1, -1, -6000); // This should determine the sun angle
 
 		//light.addTo(this);
 		this._camera.add(light._light);
@@ -1896,19 +1896,7 @@ B.Model = B.Class.extend({
 		var camera = this._camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 500000);
 		camera.up.set(0, 0, 1);
 
-		// Position the camera
-		// TODO: Make this an option or something
-		camera.position.x = 3000;
-		camera.position.y = 3000;
-		camera.position.z = 7065;
-		// Look at the center of campus
-		camera.lookAt(new THREE.Vector3(4311, 1640, 7065));
-
-		// First person controls
-		//this._controls = new THREE.FirstPersonControls(camera);
-		//this._controls.movementSpeed = 3000;
-		//this._controls.lookSpeed = 0.1;
-
+		// Init the controls
 		this._controls = new B.DefaultControl(camera);
 	},
 	_initLoadManager: function () {
@@ -1948,12 +1936,12 @@ B.Terrain = B.Class.extend({
 		gridSpace: 50, // In meters
 		dataType: 'SRTM_raster'
 	},
-	initialize: function (terrainDataPath, bounds, options) {
+	initialize: function (data, bounds, options) {
 		options = B.setOptions(this, options);
 
 		// Read in the data
-		this._data = this._loadTerrain(terrainDataPath);
-
+		this._data = data;
+	
 		this._bounds = bounds;
 		this._origin = this._bounds.getSouthWest();
 
@@ -1962,13 +1950,12 @@ B.Terrain = B.Class.extend({
 
 		this._geometry = new THREE.PlaneGeometry(width, height, 199, 399);
 
-
-
 		//this._geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
 
 		for (var i = 0, l = this._geometry.vertices.length; i < l; i++) {
 			this._geometry.vertices[i].z = this._data[i] / 65535 * 4347;
 		}
+		THREE.GeometryUtils.triangulateQuads(this._geometry);
 
 
 		this._createMesh();
@@ -1976,30 +1963,44 @@ B.Terrain = B.Class.extend({
 		this._mesh.castShadow = true;
 		this._mesh.receiveShadow = true;
 
-
-
 		this._mesh.translateX(width / 2);
 		this._mesh.translateY(height / 2);
-
-
-
 	},
-	_loadTerrain: function (file) {
-		var xhr = new XMLHttpRequest();
-		xhr.responseType = 'arraybuffer';
-		xhr.open('GET', file, false);
-		var data;
-		xhr.onload = function () {
-			if (xhr.response) {
-				data = new Uint16Array(xhr.response);
-			}
-		};
-		xhr.send(null);
-		return data;
+	heightAt: function (lat, lon, xym) {
+		// Return the elevation of the terrain at the given lat/lon
+		var ele; // The return value
+
+		if (!this._bounds.contains([lat, lon])) {
+			//throw new Error('Coordinates outside of bounds');
+			console.error('Coordinates outside of bounds');
+			return 0;
+		}
+
+		if (!xym) {
+			xym = this._latlon2meters(lat, lon);
+		}
+
+		var rc = new THREE.Raycaster(
+			new THREE.Vector3(xym.x, xym.y, 1000000),
+			new THREE.Vector3(0, 0, 1)
+			);
+		
+		ele = rc.intersectObject(this._mesh, true);
+		console.log(ele);
+
+		return ele;
+	},
+	worldVector: function (lat, lon) {
+		// Return a Vector3 with world coords for given lat, lon
+		var xym = this._latlon2meters(lat, lon);
+
+		var ele = this.heightAt(lat, lon, xym);
+
+		return new THREE.Vector3(xym.x, xym.y, ele);
 	},
 	addTo: function (model) {
 		model.addTerrain(this);
-		//console.log(model);
+		console.log(model);
 		return this;
 	},
 	_createMesh: function () {
