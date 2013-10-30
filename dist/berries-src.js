@@ -1794,6 +1794,18 @@ B.DefaultControl = B.Class.extend({
 	}
 });
 
+/* 
+	A class to define global berries options
+*/
+B.Options = {
+	render: {
+		buildings: true,
+		fireHydrants: true,
+		roads: false
+	},
+	bounds: null,
+};
+
 /*
  * B.model is the equivalent of L.map. It initializes a model to add data to.
  */
