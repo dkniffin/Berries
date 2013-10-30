@@ -52,6 +52,7 @@ B.Terrain = B.Class.extend({
 	heightAt: function (lat, lon, xym) {
 		// Return the elevation of the terrain at the given lat/lon
 		var surfacePt = new THREE.Vector3();
+		var ele;
 
 		if (!this._bounds.contains([lat, lon])) {
 			//throw new Error('Coordinates outside of bounds');
@@ -65,6 +66,7 @@ B.Terrain = B.Class.extend({
 
 		surfacePt.x = xym.x;
 		surfacePt.y = xym.y;
+		/*
 
 		// Get the row/col number of the gridpoint in the plane
 		var nRow = Math.ceil((surfacePt.y) / this._gridSpaceY), // 0 based
@@ -116,13 +118,30 @@ B.Terrain = B.Class.extend({
 		var b = this._lerp(p1.z, p3.z, d2);
 
 		surfacePt.z = this._lerp(a, b, d3);
-		
+		*/
+
 		// Simply estimate the value from an average of the four surrounding points
 		//ele = (nw + ne + se + sw) / 4;
 
 		//console.log(ele);
 
 		// Attempt at raycasting
+		var rc = new THREE.Raycaster(
+			new THREE.Vector3(xym.x, xym.y, 0),
+			new THREE.Vector3(0, 0, -1)
+		);
+
+		ele = rc.intersectObject(this._mesh);
+		console.log(ele);
+
+		rc = new THREE.Raycaster(
+			new THREE.Vector3(xym.x, xym.y, 0),
+			new THREE.Vector3(0, 0, 1)
+		);
+
+		ele = rc.intersectObject(this._mesh);
+		console.log(ele);
+		console.log(xym.x + ',' + xym.y);
 		/*
 		var rc = new THREE.Raycaster(
 			new THREE.Vector3(xym.x, xym.y, 5000),
