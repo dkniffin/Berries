@@ -7,26 +7,30 @@ B.Terrain = B.Class.extend({
 		dataType: 'SRTM_raster'
 	},
 	initialize: function (data, bounds, options) {
+		// Data - an array of elevations
+		// Bounds - the lat/lon bounds of the terrain
 		options = B.setOptions(this, options);
 
 		// Read in the data
 		this._data = data;
-	
 		this._bounds = bounds;
+
+		// Set the origin to the southwest corner
 		this._origin = this._bounds.getSouthWest();
 
+		// Calculate the width and height of the bounds
 		var width = this._origin.distanceTo(this._bounds.getSouthEast());
 		var height = this._origin.distanceTo(this._bounds.getNorthWest());
 
+		// Create the geometry
 		// TODO: abstract the 199 and 399 out
-		this._numGridsX = 199;
-		this._numGridsY = 399;
-		this._geometry = new THREE.PlaneGeometry(width, height, this._numGridsX, this._numGridsY);
+		this._numGridsX = 200;
+		this._numGridsY = 400;
+		this._geometry = new THREE.PlaneGeometry(width, height, this._numGridsX - 1, this._numGridsY - 1);
 		this._gridSpaceX = width / this._numGridsX;
 		this._gridSpaceY = height / this._numGridsY;
 
-		//this._geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
-
+		// Set the heights of each vertex
 		for (var i = 0, l = this._geometry.vertices.length; i < l; i++) {
 			this._geometry.vertices[i].z = this._data[i] / 65535 * 4347;
 		}
@@ -34,18 +38,20 @@ B.Terrain = B.Class.extend({
 		this._geometry.computeFaceNormals();
 		this._geometry.computeVertexNormals();
 
-
+		// Create the mesh
 		this._createMesh();
 
+		// Enable shadows for the ground
 		this._mesh.castShadow = true;
 		this._mesh.receiveShadow = true;
 
+		// Move the mesh so that the origin is in the southwest corner
 		this._mesh.translateX(width / 2);
 		this._mesh.translateY(height / 2);
 	},
 	heightAt: function (lat, lon, xym) {
 		// Return the elevation of the terrain at the given lat/lon
-		var ele; // The return value
+		var surfacePt = new THREE.Vector3();
 
 		if (!this._bounds.contains([lat, lon])) {
 			//throw new Error('Coordinates outside of bounds');
@@ -57,21 +63,19 @@ B.Terrain = B.Class.extend({
 			xym = this._latlon2meters(lat, lon);
 		}
 
-		// Get the 
-		var n = Math.ceil((xym.y) / this._gridSpaceY),
-			s = Math.floor((xym.y) / this._gridSpaceY),
-			e = Math.ceil((xym.x) / this._gridSpaceX),
-			w = Math.floor((xym.x) / this._gridSpaceX);
+		surfacePt.x = xym.x;
+		surfacePt.y = xym.y;
 
-		n = (n - 1 < 0) ? 0 : n - 1;
-		s = (s - 1 < 0) ? 0 : s - 1;
-
+		var nRow = Math.ceil((surfacePt.y) / this._gridSpaceY), // 0 based
+			sRow = Math.floor((surfacePt.y) / this._gridSpaceY),// 0 based
+			wCol = Math.ceil((surfacePt.x) / this._gridSpaceX), // 0 based
+			eCol = Math.floor((surfacePt.x) / this._gridSpaceX); // 0 based
 
 		// Get the positions of the 4 data points
-		var nwDP = (n) * this._numGridsX + w,
-			neDP = (n) * this._numGridsX + e,
-			seDP = (s) * this._numGridsX + e,
-			swDP = (s) * this._numGridsX + w;
+		var nwDP = (nRow) * this._numGridsX + wCol,
+			neDP = (nRow) * this._numGridsX + eCol,
+			seDP = (sRow) * this._numGridsX + eCol,
+			swDP = (sRow) * this._numGridsX + wCol;
 
 		// Get the vectors of the 4 surrounding points
 		var nw = this._geometry.vertices[nwDP],
@@ -79,24 +83,41 @@ B.Terrain = B.Class.extend({
 			se = this._geometry.vertices[seDP],
 			sw = this._geometry.vertices[swDP];
 
-		// Simply estimate the value from an average of the four surrounding points
-		//ele = (nw + ne + se + sw) / 4;
 
-		// NOTE: This method wont work, because our mesh is comprised of triangles, not quads
+		// NOTE: Quad interpolation wont work, because our mesh is comprised of triangles, not quads
 		// http://math.stackexchange.com/questions/64176/interpolating-point-on-a-quad
-
+		
 
 		// Triangle interpolation
 		// First figure out which triangle
 		var dx = xym.x - sw.x,
 			dy = xym.y - sw.y;
 		var p1, p2, p3;
+		
 		if (dx < dy) {
 			// Upper left triangle
+			p1 = ne;
+			p2 = nw;
+			p3 = sw;
 		} else {
 			// Lower right triangle
+			p1 = sw;
+			p2 = se;
+			p3 = ne;
 		}
+
+		// TODO: abstract out this._distance(p1, p2) so we only run it once
+		var d1 = this._distance(p1, new THREE.Vector3(surfacePt.x, p1.y, null));
+		var d2 = (d1 * this._distance(p1, p3)) / this._distance(p1, p2);
+		var d3 = (d1 * this._distance(p2, p3)) / this._distance(p1, p2);
 		
+		var a = this._lerp(p1.z, p2.z, d1);
+		var b = this._lerp(p1.z, p3.z, d2);
+
+		surfacePt.z = this._lerp(a, b, d3);
+		
+		// Simply estimate the value from an average of the four surrounding points
+		//ele = (nw + ne + se + sw) / 4;
 
 		//console.log(ele);
 
@@ -111,12 +132,12 @@ B.Terrain = B.Class.extend({
 		console.log(ele);
 		*/
 
-		return ele;
+		return surfacePt.z;
 	},
-	_distance: function (x1, y1, x2, y2) {
+	_distance: function (p1, p2) {
 		// Distance formula
 		// TODO: Move this out of Terrain.js
-		return Math.sqrt(Math.pow((x2 - x1), 2) + Math.pow((y2 - y1), 2));
+		return Math.sqrt(Math.pow((p2.x - p1.x), 2) + Math.pow((p2.y - p1.y), 2));
 	},
 	_customRound: function (value, mode, multiple) {
 		// TODO: Move this out of Terrain.js
@@ -138,6 +159,9 @@ B.Terrain = B.Class.extend({
 		case 'up':
 			return (multiple * Math.ceil(value / multiple));
 		}
+	},
+	_lerp: function (v1, v2, f) {
+		return v1 + (v2 - v1) * f;
 	},
 	worldVector: function (lat, lon) {
 		// Return a Vector3 with world coords for given lat, lon

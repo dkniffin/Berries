@@ -21,6 +21,11 @@ B.Model = B.Class.extend({
 		this._initCamera();
 		this._initLoadManager();
 
+		// For debugging
+		this._addAxis('x', 1000000, 0xff0000);
+		this._addAxis('y', 1000000, 0x00ff00);
+		this._addAxis('z', 1000000, 0x0000ff);
+
 		var light = new B.Light();
 		light._light.position = new THREE.Vector3(0, 0, 0);
 		light._light.target.position = new THREE.Vector3(-1, -1, -6000); // This should determine the sun angle
@@ -58,6 +63,30 @@ B.Model = B.Class.extend({
 	addObject: function (object) {
 		this._scene.add(object);
 		return this;
+	},
+	_addAxis: function (axis, length, color) {
+		var p1 = new THREE.Vector3(),
+			p2 = new THREE.Vector3();
+		switch (axis) {
+		case 'x':
+			p1.set(-length, 0, 0);
+			p2.set(length, 0, 0);
+			break;
+		case 'y':
+			p1.set(0, -length, 0);
+			p2.set(0, length, 0);
+			break;
+		case 'z':
+			p1.set(0, 0, -length);
+			p2.set(0, 0, length);
+			break;
+		}
+		var line,
+			lineGeometry = new THREE.Geometry(),
+			lineMat = new THREE.LineBasicMaterial({color: color, lineWidth: 1});
+		lineGeometry.vertices.push(p1, p2);
+		line = new THREE.Line(lineGeometry, lineMat);
+        this._scene.add(line);
 	},
 	_initContainer: function (id) {
 		var container = this._container = B.DomUtil.get(id);
