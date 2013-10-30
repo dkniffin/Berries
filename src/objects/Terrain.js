@@ -66,6 +66,7 @@ B.Terrain = B.Class.extend({
 		surfacePt.x = xym.x;
 		surfacePt.y = xym.y;
 
+		// Get the row/col number of the gridpoint in the plane
 		var nRow = Math.ceil((surfacePt.y) / this._gridSpaceY), // 0 based
 			sRow = Math.floor((surfacePt.y) / this._gridSpaceY),// 0 based
 			wCol = Math.ceil((surfacePt.x) / this._gridSpaceX), // 0 based
