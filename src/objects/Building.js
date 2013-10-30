@@ -48,10 +48,10 @@ B.Building = B.Class.extend({
 		
 
 		// Use the lowest point of the building
-		var groundLevel = outlinePoints[0].y;
+		var groundLevel = outlinePoints[0].z;
 		for (i in outlinePoints) {
-			if (outlinePoints[i].y < groundLevel) {
-				groundLevel = outlinePoints[i].y;
+			if (outlinePoints[i].z < groundLevel) {
+				groundLevel = outlinePoints[i].z;
 			}
 		}
 		var roofLevel = groundLevel + height;
@@ -75,10 +75,10 @@ B.Building = B.Class.extend({
 
 			// Create the geometry for one wall
 			var wallGeometry = new THREE.Geometry();
-			wallGeometry.vertices.push(new THREE.Vector3(point.x, groundLevel, point.z));
-			wallGeometry.vertices.push(new THREE.Vector3(point2.x, groundLevel, point2.z));
-			wallGeometry.vertices.push(new THREE.Vector3(point2.x, roofLevel, point2.z));
-			wallGeometry.vertices.push(new THREE.Vector3(point.x, roofLevel, point.z));
+			wallGeometry.vertices.push(new THREE.Vector3(point.x, point.y, groundLevel));
+			wallGeometry.vertices.push(new THREE.Vector3(point2.x, point2.y, groundLevel));
+			wallGeometry.vertices.push(new THREE.Vector3(point2.x, point2.y, roofLevel));
+			wallGeometry.vertices.push(new THREE.Vector3(point.x, point.y, roofLevel));
 
 			wallGeometry.faces.push(new THREE.Face3(2, 1, 0, null, null, wallMaterialIndex));
 			wallGeometry.faces.push(new THREE.Face3(3, 2, 0, null, null, wallMaterialIndex));
@@ -87,7 +87,7 @@ B.Building = B.Class.extend({
 			THREE.GeometryUtils.merge(buildingGeometry, wallGeometry);
 
 			// create a 2D point for creating the roof
-			roofPointsCoplanar.push(new THREE.Vector2(point.x, point.z));
+			roofPointsCoplanar.push(new THREE.Vector2(point.x, point.y));
 		}
 
 
@@ -100,7 +100,7 @@ B.Building = B.Class.extend({
 
 		for (i in shapePoints.shape) {
 			var vertex = shapePoints.shape[i];
-			roofGeometry.vertices.push(new THREE.Vector3(vertex.x, roofLevel, vertex.y));
+			roofGeometry.vertices.push(new THREE.Vector3(vertex.x, vertex.y, roofLevel));
 		}
 		for (i in faces) {
 			roofGeometry.faces.push(new THREE.Face3(faces[i][0], faces[i][1], faces[i][2],
@@ -127,7 +127,7 @@ B.Building = B.Class.extend({
 			lat = Number(node.lat);
 			lon = Number(node.lon);
 			vec = model.getTerrain().worldVector(lat, lon);
-			//vec.y += 1;
+			//vec.z += 1;
 			outlinePoints.push(vec);
 		}
 		return outlinePoints;

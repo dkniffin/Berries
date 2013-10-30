@@ -1933,7 +1933,6 @@ B.model = function (id, options) {
 
 B.Terrain = B.Class.extend({
 	options: {
-		gridSpace: 50, // In meters
 		dataType: 'SRTM_raster'
 	},
 	initialize: function (data, bounds, options) {
@@ -1948,7 +1947,12 @@ B.Terrain = B.Class.extend({
 		var width = this._origin.distanceTo(this._bounds.getSouthEast());
 		var height = this._origin.distanceTo(this._bounds.getNorthWest());
 
-		this._geometry = new THREE.PlaneGeometry(width, height, 199, 399);
+		// TODO: abstract the 199 and 399 out
+		this._numGridsX = 199;
+		this._numGridsY = 399;
+		this._geometry = new THREE.PlaneGeometry(width, height, this._numGridsX, this._numGridsY);
+		this._gridSpaceX = width / this._numGridsX;
+		this._gridSpaceY = height / this._numGridsY;
 
 		//this._geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
 
@@ -1982,6 +1986,43 @@ B.Terrain = B.Class.extend({
 			xym = this._latlon2meters(lat, lon);
 		}
 
+		// Get the 
+		var n = Math.ceil((xym.y) / this._gridSpaceY),
+			s = Math.floor((xym.y) / this._gridSpaceY),
+			e = Math.ceil((xym.x) / this._gridSpaceX),
+			w = Math.floor((xym.x) / this._gridSpaceX);
+
+		n = (n - 1 < 0) ? 0 : n - 1;
+		s = (s - 1 < 0) ? 0 : s - 1;
+
+
+		// Get the positions of the 4 data points
+		var nwDP = (n) * this._numGridsX + w,
+			neDP = (n) * this._numGridsX + e,
+			seDP = (s) * this._numGridsX + e,
+			swDP = (s) * this._numGridsX + w;
+
+		// Get the elevations of the 4 surrounding points
+		var nw = this._geometry.vertices[nwDP].z,
+			ne = this._geometry.vertices[neDP].z,
+			se = this._geometry.vertices[seDP].z,
+			sw = this._geometry.vertices[swDP].z;
+
+		// Simply estimate the value from an average of the four surrounding points
+		//ele = (nw + ne + se + sw) / 4;
+
+		//This code is an attempt at a real linear interpolation, but I couldn't get it working.
+		// http://math.stackexchange.com/questions/64176/interpolating-point-on-a-quad
+		var o = this._distance(nw.x, nw.y, xym.x, nw.y); // t
+		var p = this._distance(xym.x, nw.y, xym.x, xym.y); // s
+		var E = nw +  o * (ne - nw);
+		var F = nw + o * (sw - se);
+		ele =  E + p * (F - E);
+
+		//console.log(ele);
+
+		// Attempt at raycasting
+		/*
 		var rc = new THREE.Raycaster(
 			new THREE.Vector3(xym.x, xym.y, 5000),
 			new THREE.Vector3(0, 0, -1)
@@ -1989,8 +2030,35 @@ B.Terrain = B.Class.extend({
 		
 		ele = rc.intersectObject(this._mesh);
 		console.log(ele);
+		*/
 
 		return ele;
+	},
+	_distance: function (x1, y1, x2, y2) {
+		// Distance formula
+		// TODO: Move this out of Terrain.js
+		return Math.sqrt(Math.pow((x2 - x1), 2) + Math.pow((y2 - y1), 2));
+	},
+	_customRound: function (value, mode, multiple) {
+		// TODO: Move this out of Terrain.js
+		// Rounds the value to the multiple, using the given mode
+		// ie: round 5 up to a mupltiple of 10 (10)
+		// or: round 36 down to a multiple of 5 (35)
+		// or: round 44 to the nearest multiple of 3 (45)
+		switch (mode) {
+		case 'nearest':
+			var nearest;
+			if ((value % multiple) >= multiple / 2) {
+				nearest = parseInt(value / multiple, 10) * multiple + multiple;
+			} else {
+				nearest = parseInt(value / multiple, 10) * multiple;
+			}
+			return nearest;
+		case 'down':
+			return (multiple * Math.floor(value / multiple));
+		case 'up':
+			return (multiple * Math.ceil(value / multiple));
+		}
 	},
 	worldVector: function (lat, lon) {
 		// Return a Vector3 with world coords for given lat, lon
@@ -2260,10 +2328,10 @@ B.Building = B.Class.extend({
 		
 
 		// Use the lowest point of the building
-		var groundLevel = outlinePoints[0].y;
+		var groundLevel = outlinePoints[0].z;
 		for (i in outlinePoints) {
-			if (outlinePoints[i].y < groundLevel) {
-				groundLevel = outlinePoints[i].y;
+			if (outlinePoints[i].z < groundLevel) {
+				groundLevel = outlinePoints[i].z;
 			}
 		}
 		var roofLevel = groundLevel + height;
@@ -2287,10 +2355,10 @@ B.Building = B.Class.extend({
 
 			// Create the geometry for one wall
 			var wallGeometry = new THREE.Geometry();
-			wallGeometry.vertices.push(new THREE.Vector3(point.x, groundLevel, point.z));
-			wallGeometry.vertices.push(new THREE.Vector3(point2.x, groundLevel, point2.z));
-			wallGeometry.vertices.push(new THREE.Vector3(point2.x, roofLevel, point2.z));
-			wallGeometry.vertices.push(new THREE.Vector3(point.x, roofLevel, point.z));
+			wallGeometry.vertices.push(new THREE.Vector3(point.x, point.y, groundLevel));
+			wallGeometry.vertices.push(new THREE.Vector3(point2.x, point2.y, groundLevel));
+			wallGeometry.vertices.push(new THREE.Vector3(point2.x, point2.y, roofLevel));
+			wallGeometry.vertices.push(new THREE.Vector3(point.x, point.y, roofLevel));
 
 			wallGeometry.faces.push(new THREE.Face3(2, 1, 0, null, null, wallMaterialIndex));
 			wallGeometry.faces.push(new THREE.Face3(3, 2, 0, null, null, wallMaterialIndex));
@@ -2299,7 +2367,7 @@ B.Building = B.Class.extend({
 			THREE.GeometryUtils.merge(buildingGeometry, wallGeometry);
 
 			// create a 2D point for creating the roof
-			roofPointsCoplanar.push(new THREE.Vector2(point.x, point.z));
+			roofPointsCoplanar.push(new THREE.Vector2(point.x, point.y));
 		}
 
 
@@ -2312,7 +2380,7 @@ B.Building = B.Class.extend({
 
 		for (i in shapePoints.shape) {
 			var vertex = shapePoints.shape[i];
-			roofGeometry.vertices.push(new THREE.Vector3(vertex.x, roofLevel, vertex.y));
+			roofGeometry.vertices.push(new THREE.Vector3(vertex.x, vertex.y, roofLevel));
 		}
 		for (i in faces) {
 			roofGeometry.faces.push(new THREE.Face3(faces[i][0], faces[i][1], faces[i][2],
@@ -2339,7 +2407,7 @@ B.Building = B.Class.extend({
 			lat = Number(node.lat);
 			lon = Number(node.lon);
 			vec = model.getTerrain().worldVector(lat, lon);
-			//vec.y += 1;
+			//vec.z += 1;
 			outlinePoints.push(vec);
 		}
 		return outlinePoints;
