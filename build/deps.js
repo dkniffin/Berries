@@ -5,6 +5,7 @@ var deps = {
 		      'core/Class.js',
 		      'core/Browser.js',
 		      'core/Logger.js',
+		      'core/Premades.js',
 		      'materials/Material.js',
 		      'materials/DefaultMaterials.js',
 		      'geometry/Point.js',

@@ -19,7 +19,6 @@ B.Model = B.Class.extend({
 
 		this._initThree();
 		this._initCamera();
-		this._initLoadManager();
 
 		// For debugging
 		//this._addAxis('x', 1000000, 0xff0000);
@@ -133,10 +132,7 @@ B.Model = B.Class.extend({
 		this._controls = new B.DefaultControl(camera);
 	},
 	_initLoadManager: function () {
-		var manager = this._loadManager = new THREE.ColladaLoader();
-		manager.onProgress = function (item, loaded, total) {
-			console.log(item, loaded, total);
-		};
+		
 	},
 	_render: function () {
 		//this._controls.update(this._clock.getDelta()); // Update the controls based on a clock

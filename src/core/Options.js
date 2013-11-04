@@ -4,7 +4,7 @@
 B.Options = {
 	render: {
 		buildings: true,
-		fireHydrants: false,
+		fireHydrants: true,
 		roads: false
 	},
 	bounds: null,
