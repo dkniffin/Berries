@@ -18,8 +18,8 @@ B.OSMDataContainer = B.Class.extend({
 	},
 	addTo: function (model) {
 		// Loop over things to render, and add them each to the model
-		for (var i in this.options.render) {
-			var feature = this.options.render[i];
+		for (var feature in B.Options.render) {
+			if (B.Options.render[feature] === false) { continue; }
 
 			var way, node;
 			switch (feature) {
