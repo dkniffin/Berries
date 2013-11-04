@@ -14,8 +14,8 @@ B.DefaultControl = B.Class.extend({
 		minCamHeight: 0,
 		maxCamHeight: Infinity,
 		keys: [33, 34, 35, 36, 38, 40, 39, 37, 38, 40, 39, 37],
-		zoomIncrement: 10,
-		panIncrement: 500,
+		zoomIncrement: 50,
+		panIncrement: 100,
 		pitchIncrement: 0.1,
 		maxZoomInHeight: 1600,
 		maxZoomOutHeight: 50000

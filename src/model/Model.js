@@ -22,9 +22,9 @@ B.Model = B.Class.extend({
 		this._initLoadManager();
 
 		// For debugging
-		this._addAxis('x', 1000000, 0xff0000);
-		this._addAxis('y', 1000000, 0x00ff00);
-		this._addAxis('z', 1000000, 0x0000ff);
+		//this._addAxis('x', 1000000, 0xff0000);
+		//this._addAxis('y', 1000000, 0x00ff00);
+		//this._addAxis('z', 1000000, 0x0000ff);
 
 		var light = new B.Light();
 		light._light.position = new THREE.Vector3(0, 0, 0);

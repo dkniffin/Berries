@@ -15,7 +15,7 @@ B.Light = B.Class.extend({
 		//dirLight.target.position = new THREE.Vector3(4311, 1640, 7065);
 
 		dirLight.castShadow = true;
-		dirLight.shadowCameraVisible = true;
+		dirLight.shadowCameraVisible = false;
 
 
 		dirLight.shadowMapWidth = 4096;

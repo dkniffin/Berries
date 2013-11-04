@@ -1634,8 +1634,8 @@ B.DefaultControl = B.Class.extend({
 		minCamHeight: 0,
 		maxCamHeight: Infinity,
 		keys: [33, 34, 35, 36, 38, 40, 39, 37, 38, 40, 39, 37],
-		zoomIncrement: 10,
-		panIncrement: 500,
+		zoomIncrement: 50,
+		panIncrement: 100,
 		pitchIncrement: 0.1,
 		maxZoomInHeight: 1600,
 		maxZoomOutHeight: 50000
@@ -1818,9 +1818,9 @@ B.Model = B.Class.extend({
 		this._initLoadManager();
 
 		// For debugging
-		this._addAxis('x', 1000000, 0xff0000);
-		this._addAxis('y', 1000000, 0x00ff00);
-		this._addAxis('z', 1000000, 0x0000ff);
+		//this._addAxis('x', 1000000, 0xff0000);
+		//this._addAxis('y', 1000000, 0x00ff00);
+		//this._addAxis('z', 1000000, 0x0000ff);
 
 		var light = new B.Light();
 		light._light.position = new THREE.Vector3(0, 0, 0);
@@ -1982,17 +1982,17 @@ B.Terrain = B.Class.extend({
 
 		// Create the geometry
 		// TODO: abstract the 199 and 399 out
-		this._numGridsX = 200;
-		this._numGridsY = 400;
-		this._geometry = new THREE.PlaneGeometry(width, height, this._numGridsX - 1, this._numGridsY - 1);
-		this._gridSpaceX = width / this._numGridsX;
-		this._gridSpaceY = height / this._numGridsY;
+		this._numVertsX = 200;
+		this._numVertsY = 400;
+		this._geometry = new THREE.PlaneGeometry(width, height, this._numVertsX - 1, this._numVertsY - 1);
+		this._gridSpaceX = width / (this._numVertsX - 1);
+		this._gridSpaceY = height / (this._numVertsY - 1);
 
 		// Set the heights of each vertex
 		for (var i = 0, l = this._geometry.vertices.length; i < l; i++) {
 			this._geometry.vertices[i].z = this._data[i] / 65535 * 4347;
 		}
-		THREE.GeometryUtils.triangulateQuads(this._geometry);
+		//THREE.GeometryUtils.triangulateQuads(this._geometry);
 		this._geometry.computeFaceNormals();
 		this._geometry.computeVertexNormals();
 
@@ -2010,7 +2010,6 @@ B.Terrain = B.Class.extend({
 	heightAt: function (lat, lon, xym) {
 		// Return the elevation of the terrain at the given lat/lon
 		var surfacePt = new THREE.Vector3();
-		var ele;
 
 		if (!this._bounds.contains([lat, lon])) {
 			//throw new Error('Coordinates outside of bounds');
@@ -2024,119 +2023,48 @@ B.Terrain = B.Class.extend({
 
 		surfacePt.x = xym.x;
 		surfacePt.y = xym.y;
-		/*
 
-		// Get the row/col number of the gridpoint in the plane
-		var nRow = Math.ceil((surfacePt.y) / this._gridSpaceY), // 0 based
-			sRow = Math.floor((surfacePt.y) / this._gridSpaceY),// 0 based
-			wCol = Math.ceil((surfacePt.x) / this._gridSpaceX), // 0 based
-			eCol = Math.floor((surfacePt.x) / this._gridSpaceX); // 0 based
+		// Get the coords of the tile the point falls into (relative to top left)
+		var ix = Math.floor((surfacePt.x) / this._gridSpaceX);
+		var iy = (this._numVertsY - 2) - Math.floor((surfacePt.y) / this._gridSpaceY);
 
 		// Get the positions of the 4 data points
-		var nwDP = (nRow) * this._numGridsX + wCol,
-			neDP = (nRow) * this._numGridsX + eCol,
-			seDP = (sRow) * this._numGridsX + eCol,
-			swDP = (sRow) * this._numGridsX + wCol;
+		var nwDP = (this._numVertsX * iy) + ix,
+			neDP = nwDP + 1,
+			swDP = nwDP + this._numVertsX,
+			seDP = swDP + 1;
 
 		// Get the vectors of the 4 surrounding points
-		var nw = this._geometry.vertices[nwDP],
-			ne = this._geometry.vertices[neDP],
-			se = this._geometry.vertices[seDP],
-			sw = this._geometry.vertices[swDP];
+		var nw = this._copyVertexByValue(this._geometry.vertices[nwDP]),
+			ne = this._copyVertexByValue(this._geometry.vertices[neDP]),
+			se = this._copyVertexByValue(this._geometry.vertices[seDP]),
+			sw = this._copyVertexByValue(this._geometry.vertices[swDP]);
 
+		nw.x += this._mesh.position.x;
+		ne.x += this._mesh.position.x;
+		se.x += this._mesh.position.x;
+		sw.x += this._mesh.position.x;
 
-		// NOTE: Quad interpolation wont work, because our mesh is comprised of triangles, not quads
-		// http://math.stackexchange.com/questions/64176/interpolating-point-on-a-quad
+		nw.y += this._mesh.position.y;
+		ne.y += this._mesh.position.y;
+		se.y += this._mesh.position.y;
+		sw.y += this._mesh.position.y;
+
+		var px = ((surfacePt.x) / this._gridSpaceX) - Math.floor((surfacePt.x) / this._gridSpaceX);
+		var py = ((surfacePt.y) / this._gridSpaceY) - Math.floor((surfacePt.y) / this._gridSpaceY);
+
+		var lerp = this._lerp;
+		// Calculate the elevation based on a linear interpolation between the surrounding points
+		surfacePt.z = lerp(lerp(nw.z, se.z, (1 + px - py) / 2), px > (1 - py) ? ne.z : se.z, Math.abs(1 - px - py));
 		
-
-		// Triangle interpolation
-		// First figure out which triangle
-		var dx = xym.x - sw.x,
-			dy = xym.y - sw.y;
-		var p1, p2, p3;
-		
-		if (dx < dy) {
-			// Upper left triangle
-			p1 = ne;
-			p2 = nw;
-			p3 = sw;
-		} else {
-			// Lower right triangle
-			p1 = sw;
-			p2 = se;
-			p3 = ne;
-		}
-
-		// TODO: abstract out this._distance(p1, p2) so we only run it once
-		var d1 = this._distance(p1, new THREE.Vector3(surfacePt.x, p1.y, null));
-		var d2 = (d1 * this._distance(p1, p3)) / this._distance(p1, p2);
-		var d3 = (d1 * this._distance(p2, p3)) / this._distance(p1, p2);
-		
-		var a = this._lerp(p1.z, p2.z, d1);
-		var b = this._lerp(p1.z, p3.z, d2);
-
-		surfacePt.z = this._lerp(a, b, d3);
-		*/
-
-		// Simply estimate the value from an average of the four surrounding points
-		//ele = (nw + ne + se + sw) / 4;
-
-		//console.log(ele);
-
-		// Attempt at raycasting
-		var rc = new THREE.Raycaster(
-			new THREE.Vector3(xym.x, xym.y, 0),
-			new THREE.Vector3(0, 0, -1)
-		);
-
-		ele = rc.intersectObject(this._mesh);
-		console.log(ele);
-
-		rc = new THREE.Raycaster(
-			new THREE.Vector3(xym.x, xym.y, 0),
-			new THREE.Vector3(0, 0, 1)
-		);
-
-		ele = rc.intersectObject(this._mesh);
-		console.log(ele);
-		console.log(xym.x + ',' + xym.y);
-		/*
-		var rc = new THREE.Raycaster(
-			new THREE.Vector3(xym.x, xym.y, 5000),
-			new THREE.Vector3(0, 0, -1)
-			);
-		
-		ele = rc.intersectObject(this._mesh);
-		console.log(ele);
-		*/
 
 		return surfacePt.z;
 	},
-	_distance: function (p1, p2) {
-		// Distance formula
-		// TODO: Move this out of Terrain.js
-		return Math.sqrt(Math.pow((p2.x - p1.x), 2) + Math.pow((p2.y - p1.y), 2));
-	},
-	_customRound: function (value, mode, multiple) {
-		// TODO: Move this out of Terrain.js
-		// Rounds the value to the multiple, using the given mode
-		// ie: round 5 up to a mupltiple of 10 (10)
-		// or: round 36 down to a multiple of 5 (35)
-		// or: round 44 to the nearest multiple of 3 (45)
-		switch (mode) {
-		case 'nearest':
-			var nearest;
-			if ((value % multiple) >= multiple / 2) {
-				nearest = parseInt(value / multiple, 10) * multiple + multiple;
-			} else {
-				nearest = parseInt(value / multiple, 10) * multiple;
-			}
-			return nearest;
-		case 'down':
-			return (multiple * Math.floor(value / multiple));
-		case 'up':
-			return (multiple * Math.ceil(value / multiple));
-		}
+	_copyVertexByValue: function (vertex) {
+		return new THREE.Vector3(
+			vertex.x,
+			vertex.y,
+			vertex.z);
 	},
 	_lerp: function (v1, v2, f) {
 		return v1 + (v2 - v1) * f;
@@ -2162,9 +2090,10 @@ B.Terrain = B.Class.extend({
 		texture.repeat.set(Math.round(this._dataDepthInMeters / heightOfTexture),
 				Math.round(this._dataWidthInMeters / widthOfTexture));
 		this._mesh = new THREE.Mesh(this._geometry, new THREE.MeshPhongMaterial({
-			//map: texture
-			wireframe: true,
-			color: 0x0000ff
+			map: texture
+			// For debugging
+			/*wireframe: true,
+			color: 0x0000ff*/
 		}));
 	},
 	_latlon2meters: function (lat, lon) {
@@ -2206,7 +2135,7 @@ B.Light = B.Class.extend({
 		//dirLight.target.position = new THREE.Vector3(4311, 1640, 7065);
 
 		dirLight.castShadow = true;
-		dirLight.shadowCameraVisible = true;
+		dirLight.shadowCameraVisible = false;
 
 
 		dirLight.shadowMapWidth = 4096;
@@ -2707,7 +2636,7 @@ B.OSMDataContainer = B.Class.extend({
 	_ways: [],
 	_relations: [],
 	options: {
-		render: [/*'roads', */'buildings', 'fire_hydrants'],
+		render: [/*'roads', */'buildings'/*, 'fire_hydrants'*/],
 	},
 	initialize: function (data, options) {
 		options = B.setOptions(this, options);
