@@ -8,7 +8,6 @@ B.OSMDataContainer = B.Class.extend({
 	_ways: [],
 	_relations: [],
 	options: {
-		render: [/*'roads', */'buildings'/*, 'fire_hydrants'*/],
 	},
 	initialize: function (data, options) {
 		options = B.setOptions(this, options);
@@ -44,7 +43,7 @@ B.OSMDataContainer = B.Class.extend({
 				}
 				bldgSet.addTo(model);
 				break;
-			case 'fire_hydrants':
+			case 'fireHydrants':
 				var fhs = this.get('fire_hydrants');
 				for (var fhId in fhs) {
 					node = fhs[fhId];

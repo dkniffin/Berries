@@ -19,25 +19,11 @@ B.FireHydrant = B.Class.extend({
 		var lon = Number(node.lon);
 		var vec = model.getTerrain().worldVector(lat, lon);
 
-		var loader = model._loadManager;
+		var fh = B.Premades.fireHydrant.clone();
+		fh.position = vec;
 
-		loader.options.convertUpAxis = true;
-		loader.load(B.Util.getDaePath() + '/fire_hydrant_red.dae', function (result) {
-			
-			//console.log(vec);
+		model.addObject(fh);
 
-			var dae = result.scene;
-			dae.position = vec;
-
-			//dae.scale.x = dae.scale.y = dae.scale.z = 0.02539999969303608;
-
-			dae.updateMatrix();
-
-
-			//object.position.y = - 80;
-			model.addObject(dae);
-
-		});
 	}
 });
 

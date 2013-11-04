@@ -10,6 +10,8 @@ B.Premades = {
 	load: function (logger) {
 		var loadedCounter = 0;
 		var loader = new THREE.ColladaLoader();
+		loader.options.convertUpAxis = true;
+		loader.options.upAxis = 'Z';
 		loader.onProgress = function (item, loaded, total) {
 			logger.log(item, loaded, total);
 		};
