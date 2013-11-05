@@ -1852,7 +1852,7 @@ B.Options = {
 	render: {
 		buildings: true,
 		fireHydrants: true,
-		roads: false
+		roads: true
 	},
 	bounds: null,
 };
@@ -1886,7 +1886,7 @@ B.Model = B.Class.extend({
 
 		var light = new B.Light();
 		light._light.position = new THREE.Vector3(0, 0, 0);
-		light._light.target.position = new THREE.Vector3(-1, -1, -6000); // This should determine the sun angle
+		light._light.target.position = new THREE.Vector3(-100, 100, -100); // This should determine the sun angle
 
 		//light.addTo(this);
 		this._camera.add(light._light);
@@ -2014,6 +2014,7 @@ B.model = function (id, options) {
 	}
 	return new B.Model(id, options);
 };
+
 
 /*
  * This file contains the code necessary for terrain manipulation
@@ -2143,8 +2144,8 @@ B.Terrain = B.Class.extend({
 	},
 	_createMesh: function () {
 		var texture = THREE.ImageUtils.loadTexture(B.Util.getTexturePath() + '/seamless-grass.jpg');
-		var widthOfTexture = 10; // meters
-		var heightOfTexture = 10; // meters
+		var widthOfTexture = 50; // meters
+		var heightOfTexture = 50; // meters
 		texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
 		texture.repeat.set(Math.round(this._dataDepthInMeters / heightOfTexture),
 				Math.round(this._dataWidthInMeters / widthOfTexture));
@@ -2194,21 +2195,21 @@ B.Light = B.Class.extend({
 		//dirLight.target.position = new THREE.Vector3(4311, 1640, 7065);
 
 		dirLight.castShadow = true;
-		dirLight.shadowCameraVisible = false;
+		dirLight.shadowCameraVisible = true;
 
 
 		dirLight.shadowMapWidth = 4096;
 		dirLight.shadowMapHeight = 4096;
 
-		var d = 1000;
+		var d = 500;
 
 		dirLight.shadowCameraLeft = -d;
 		dirLight.shadowCameraRight = d;
 		dirLight.shadowCameraTop = d;
 		dirLight.shadowCameraBottom = -d;
 
-		dirLight.shadowCameraFar = 500;
-		dirLight.shadowCameraNear = -500;
+		dirLight.shadowCameraFar = 1000;
+		dirLight.shadowCameraNear = -100;
 		dirLight.shadowBias = 0.001;
 		dirLight.shadowDarkness = 0.5;
 
@@ -2241,6 +2242,7 @@ B.Light = B.Class.extend({
 B.light = function (id, options) {
 	return new B.Light(id, options);
 };
+
 
 /*
  * B.Road is a class for drawing a road
@@ -2302,9 +2304,10 @@ B.Road = B.Class.extend({
 
 		// Create the cross section shape
 		// Credits go to bai (http://bai.dev.supcrit.com/scripts/engine/things/road.js)
+		/*
 		var thickness = 0.25,
-	        thickscale = 4;
-	    var roadpoints = [
+			thickscale = 4;
+		var roadpoints = [
 			new THREE.Vector2(-1, 0),
 			new THREE.Vector2(-1, -width / 2 - thickness * thickscale + 5),
 			new THREE.Vector2(-1, -width / 2 - thickness * thickscale),
@@ -2318,26 +2321,72 @@ B.Road = B.Class.extend({
 			new THREE.Vector2(-1, width / 2 + thickness * thickscale - 5),
 			new THREE.Vector2(-1, 0),
 	    ];
+	    */
+	    var thickness = 0.25;
+		var roadpoints = [
+			new THREE.Vector2(-width / 2, 0),
+			new THREE.Vector2(-width / 2,  thickness),
+			new THREE.Vector2(width / 2, thickness),
+			new THREE.Vector2(width / 2, 0)
+	    ];
 	    var roadshape = new THREE.Shape(roadpoints);
-	    //roadshape.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+
 
 
 	    var splinepoints = [];
 	    // Create the road spline (the path it follows)
 		for (var i in this._way.nodes) {
+			i = Number(i);
 			var nodeId = this._way.nodes[i];
 			var node = this._osmDC.getNode(nodeId);
 			var lat = Number(node.lat);
 			var lon = Number(node.lon);
 			var wvector = model.getTerrain().worldVector(lat, lon);
 
-			wvector.y += thickness; // Add a meter, so it shows up above the surface
+			// Make sure points aren't too close
+			/*
+			if (i !== 0 &&
+				wvector.distanceTo(splinepoints[splinepoints.length - 1]) < 1) {
+				continue;
+			}
+			*/
+
+			wvector.z += thickness;
+
+
 
 			splinepoints.push(wvector);
 		}
-		var roadspline = new THREE.SplineCurve3(splinepoints);
 
-		this._geometry = new THREE.ExtrudeGeometry(roadshape, {extrudePath: roadspline });
+		var roadspline;
+		if (splinepoints[0].equals(splinepoints[splinepoints.length - 1])) {
+			splinepoints.pop();
+			roadspline = new THREE.ClosedSplineCurve3(splinepoints);
+		} else {
+			roadspline = new THREE.SplineCurve3(splinepoints);
+		}
+
+		/*var steps = Math.floor(roadspline.getLength() / 4);
+		if (steps < 1) { steps = 1; }*/
+		var steps = splinepoints.length;
+
+		var frames = {tangents: [], normals: [], binormals: []};
+		var normal = new THREE.Vector3(1, 0, 0);
+		for (i = 0; i < steps + 1; i++) {
+			var u = i / steps;
+			var tangent = roadspline.getTangentAt(u).normalize();
+			frames.tangents[i] = tangent;
+			frames.normals[i] = normal;
+			frames.binormals[i] = tangent.clone().cross(normal);
+		}
+
+
+		this._geometry = new THREE.ExtrudeGeometry(roadshape, {
+			extrudePath: roadspline,
+			steps: steps,
+			frames: frames,
+			closed: true
+		});
 
 	}
 });
@@ -2641,6 +2690,7 @@ B.RoadSet = B.ObjectSet.extend({
 		var mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
 			color: 0x959393
 		}));
+		mesh.receiveShadow = true;
 		// Add it to the model
 		console.log(mesh);
 		model.addObject(mesh);
@@ -2650,6 +2700,7 @@ B.RoadSet = B.ObjectSet.extend({
 B.roadset = function (id, options) {
 	return new B.RoadSet(id, options);
 };
+
 
 B.BuildingSet = B.ObjectSet.extend({
 	// TODO: make a way to set these
@@ -2688,7 +2739,7 @@ B.OSMDataContainer = B.Class.extend({
 		this.addData(data);
 		return this;
 	},
-	addTo: function (model) {
+	addTo: function (model, logger) {
 		// Loop over things to render, and add them each to the model
 		for (var feature in B.Options.render) {
 			if (B.Options.render[feature] === false) { continue; }
@@ -2696,6 +2747,7 @@ B.OSMDataContainer = B.Class.extend({
 			var way, node;
 			switch (feature) {
 			case 'roads':
+				logger.log('Adding roads');
 				var roads = this.get('roads');
 				var roadSet = new B.roadset();
 				for (var roadI in roads) {
@@ -2706,6 +2758,7 @@ B.OSMDataContainer = B.Class.extend({
 				roadSet.addTo(model);
 				break;
 			case 'buildings':
+				logger.log('Adding buildings');
 				var buildings = this.get('buildings');
 				var bldgSet = new B.buildingset();
 				for (var bId in buildings) {
@@ -2717,6 +2770,7 @@ B.OSMDataContainer = B.Class.extend({
 				bldgSet.addTo(model);
 				break;
 			case 'fireHydrants':
+				logger.log('Adding fireHydrants');
 				var fhs = this.get('fire_hydrants');
 				for (var fhId in fhs) {
 					node = fhs[fhId];
@@ -2737,6 +2791,15 @@ B.OSMDataContainer = B.Class.extend({
 			this._nodes = data.nodes;
 			this._ways = data.ways;
 			this._relations = data.relations;
+
+
+			// Deal with a rare bug where an OSM way has only one node
+			for (var i in this._ways) {
+				if (this._ways[i].nodes.length < 2) {
+					delete this._ways[i];
+					console.warn('Way ' + i + ' is a bug. It only has one node. Consider deleting it from OSM.');
+				}
+			}
 		} else {
 			// TODO: check if this functionality works
 			// Else, merge the two.

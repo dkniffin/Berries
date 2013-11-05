@@ -15,21 +15,21 @@ B.Light = B.Class.extend({
 		//dirLight.target.position = new THREE.Vector3(4311, 1640, 7065);
 
 		dirLight.castShadow = true;
-		dirLight.shadowCameraVisible = false;
+		dirLight.shadowCameraVisible = true;
 
 
 		dirLight.shadowMapWidth = 4096;
 		dirLight.shadowMapHeight = 4096;
 
-		var d = 1000;
+		var d = 500;
 
 		dirLight.shadowCameraLeft = -d;
 		dirLight.shadowCameraRight = d;
 		dirLight.shadowCameraTop = d;
 		dirLight.shadowCameraBottom = -d;
 
-		dirLight.shadowCameraFar = 500;
-		dirLight.shadowCameraNear = -500;
+		dirLight.shadowCameraFar = 1000;
+		dirLight.shadowCameraNear = -100;
 		dirLight.shadowBias = 0.001;
 		dirLight.shadowDarkness = 0.5;
 

@@ -126,8 +126,8 @@ B.Terrain = B.Class.extend({
 	},
 	_createMesh: function () {
 		var texture = THREE.ImageUtils.loadTexture(B.Util.getTexturePath() + '/seamless-grass.jpg');
-		var widthOfTexture = 10; // meters
-		var heightOfTexture = 10; // meters
+		var widthOfTexture = 50; // meters
+		var heightOfTexture = 50; // meters
 		texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
 		texture.repeat.set(Math.round(this._dataDepthInMeters / heightOfTexture),
 				Math.round(this._dataWidthInMeters / widthOfTexture));

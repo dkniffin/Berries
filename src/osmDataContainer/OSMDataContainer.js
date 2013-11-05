@@ -15,7 +15,7 @@ B.OSMDataContainer = B.Class.extend({
 		this.addData(data);
 		return this;
 	},
-	addTo: function (model) {
+	addTo: function (model, logger) {
 		// Loop over things to render, and add them each to the model
 		for (var feature in B.Options.render) {
 			if (B.Options.render[feature] === false) { continue; }
@@ -23,6 +23,7 @@ B.OSMDataContainer = B.Class.extend({
 			var way, node;
 			switch (feature) {
 			case 'roads':
+				logger.log('Adding roads');
 				var roads = this.get('roads');
 				var roadSet = new B.roadset();
 				for (var roadI in roads) {
@@ -33,6 +34,7 @@ B.OSMDataContainer = B.Class.extend({
 				roadSet.addTo(model);
 				break;
 			case 'buildings':
+				logger.log('Adding buildings');
 				var buildings = this.get('buildings');
 				var bldgSet = new B.buildingset();
 				for (var bId in buildings) {
@@ -44,6 +46,7 @@ B.OSMDataContainer = B.Class.extend({
 				bldgSet.addTo(model);
 				break;
 			case 'fireHydrants':
+				logger.log('Adding fireHydrants');
 				var fhs = this.get('fire_hydrants');
 				for (var fhId in fhs) {
 					node = fhs[fhId];
@@ -64,6 +67,15 @@ B.OSMDataContainer = B.Class.extend({
 			this._nodes = data.nodes;
 			this._ways = data.ways;
 			this._relations = data.relations;
+
+
+			// Deal with a rare bug where an OSM way has only one node
+			for (var i in this._ways) {
+				if (this._ways[i].nodes.length < 2) {
+					delete this._ways[i];
+					console.warn('Way ' + i + ' is a bug. It only has one node. Consider deleting it from OSM.');
+				}
+			}
 		} else {
 			// TODO: check if this functionality works
 			// Else, merge the two.

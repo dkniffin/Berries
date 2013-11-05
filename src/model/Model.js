@@ -27,7 +27,7 @@ B.Model = B.Class.extend({
 
 		var light = new B.Light();
 		light._light.position = new THREE.Vector3(0, 0, 0);
-		light._light.target.position = new THREE.Vector3(-1, -1, -6000); // This should determine the sun angle
+		light._light.target.position = new THREE.Vector3(-100, 100, -100); // This should determine the sun angle
 
 		//light.addTo(this);
 		this._camera.add(light._light);
