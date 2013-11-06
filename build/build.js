@@ -1,9 +1,10 @@
 var fs = require('fs'),
     jshint = require('jshint'),
-    UglifyJS = require('uglify-js'),
-    Rsync = require('rsync')
+    UglifyJS = require('uglify-js')
 
-    deps = require('./deps.js').deps,
+    mainDeps = require('./mainDeps.js').deps,
+	workerDeps = require('./workerDeps.js').deps,
+
     hintrc = require('./hintrc.js').config;
 
 function lintFiles(files) {
@@ -27,7 +28,7 @@ function lintFiles(files) {
 	return errorsFound;
 }
 
-function getFiles(compsBase32) {
+function getFiles(deps, compsBase32) {
 	var memo = {},
 	    comps;
 
@@ -68,11 +69,24 @@ exports.getFiles = getFiles;
 
 exports.lint = function () {
 
-	var files = getFiles();
+	var files = getFiles(mainDeps);
 
-	console.log('Checking for JS errors...');
+	console.log('Checking main for JS errors...');
 
 	var errorsFound = lintFiles(files);
+
+	if (errorsFound > 0) {
+		console.log(errorsFound + ' error(s) found.\n');
+		fail();
+	} else {
+		console.log('\tCheck passed');
+	}
+
+	files = getFiles(workerDeps);
+
+	console.log('Checking worker for JS errors...');
+
+	errorsFound = lintFiles(files);
 
 	if (errorsFound > 0) {
 		console.log(errorsFound + ' error(s) found.\n');
@@ -110,9 +124,10 @@ function combineFiles(files) {
 	return content;
 }
 
-exports.build = function (compsBase32, buildName) {
 
-	var files = getFiles(compsBase32);
+function buildMain(compsBase32, buildName) {
+
+	var files = getFiles(mainDeps, compsBase32);
 
 	console.log('Concatenating ' + files.length + ' files...');
 
@@ -121,7 +136,7 @@ exports.build = function (compsBase32, buildName) {
 	    outro = '}(window, document));',
 	    newSrc = copy + intro + combineFiles(files) + outro,
 
-	    pathPart = 'dist/berries' + (buildName ? '-' + buildName : ''),
+	    pathPart = 'dist/berries-main',
 	    srcPath = pathPart + '-src.js',
 
 	    oldSrc = loadSilently(srcPath),
@@ -155,16 +170,58 @@ exports.build = function (compsBase32, buildName) {
 		console.log('\tSaved to ' + path);
 	}
 
+};
 
-	// Copy the textures directory into dist
+function buildWorker(compsBase32, buildName) {
 
-	var rsync = new Rsync()
-	.flags('az')
-	.source('src/textures/')
-	.destination('dest/textures');
+	var files = getFiles(compsBase32, workerDeps);
 
-	rsync.execute();
+	console.log('Concatenating ' + files.length + ' files...');
 
+	var copy = fs.readFileSync('src/copyright.js', 'utf8'),
+	    intro = '(function (window, document, undefined) {',
+	    outro = '}(window, document));',
+	    newSrc = copy + intro + combineFiles(files) + outro,
+
+	    pathPart = 'dist/berries-worker',
+	    srcPath = pathPart + '-src.js',
+
+	    oldSrc = loadSilently(srcPath),
+	    srcDelta = getSizeDelta(newSrc, oldSrc);
+
+	console.log('\tUncompressed size: ' + newSrc.length + ' bytes (' + srcDelta + ')');
+
+	if (newSrc === oldSrc) {
+		console.log('\tNo changes');
+	} else {
+		fs.writeFileSync(srcPath, newSrc);
+		console.log('\tSaved to ' + srcPath);
+	}
+
+	console.log('Compressing...');
+
+	var path = pathPart + '.js',
+	    oldCompressed = loadSilently(path),
+	    newCompressed = copy + UglifyJS.minify(newSrc, {
+	        warnings: true,
+	        fromString: true
+	    }).code,
+	    delta = getSizeDelta(newCompressed, oldCompressed);
+
+	console.log('\tCompressed size: ' + newCompressed.length + ' bytes (' + delta + ')');
+
+	if (newCompressed === oldCompressed) {
+		console.log('\tNo changes');
+	} else {
+		fs.writeFileSync(path, newCompressed);
+		console.log('\tSaved to ' + path);
+	}
+
+};
+
+exports.build = function (compsBase32, buildName) {
+	buildMain(compsBase32, buildName);
+	buildWorker(compsBase32, buildName);
 };
 
 exports.test = function() {
