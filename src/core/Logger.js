@@ -58,3 +58,7 @@ B.Logger = B.Class.extend({
 B.logger = function (id, options) {
 	return new B.Logger(id, options);
 };
+
+B.Worker.addMsgHandler('log', function (e) {
+	console.log(e.data.message);
+});

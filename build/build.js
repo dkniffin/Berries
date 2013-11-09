@@ -174,14 +174,12 @@ function buildMain(compsBase32, buildName) {
 
 function buildWorker(compsBase32, buildName) {
 
-	var files = getFiles(compsBase32, workerDeps);
+	var files = getFiles(workerDeps, compsBase32);
 
 	console.log('Concatenating ' + files.length + ' files...');
 
 	var copy = fs.readFileSync('src/copyright.js', 'utf8'),
-	    intro = '(function (window, document, undefined) {',
-	    outro = '}(window, document));',
-	    newSrc = copy + intro + combineFiles(files) + outro,
+	    newSrc = copy + combineFiles(files),
 
 	    pathPart = 'dist/berries-worker',
 	    srcPath = pathPart + '-src.js',

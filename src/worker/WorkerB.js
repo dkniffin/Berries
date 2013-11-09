@@ -1,0 +1,2 @@
+/* global B:true */
+B = {};

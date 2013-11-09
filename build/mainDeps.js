@@ -4,6 +4,7 @@ var deps = {
 		      'core/Util.js',
 		      'core/Class.js',
 		      'core/Browser.js',
+		      'worker/Worker.js',
 		      'core/Logger.js',
 		      'core/Premades.js',
 		      'materials/Material.js',
