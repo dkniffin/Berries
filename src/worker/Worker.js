@@ -5,8 +5,8 @@ B.Worker = {
 	addMsgHandler: function (id, func) {
 		B.Worker.onMsgHandlers[id] = func;
 	},
-	sendMsg: function (msg) {
-		B.Worker.w.postMessage(msg);
+	sendMsg: function (msg, transObjs) {
+		B.Worker.w.postMessage(msg, transObjs);
 	}
 };
 
@@ -14,6 +14,6 @@ B.Worker.w.onmessage = function (e) {
 	if (typeof B.Worker.onMsgHandlers[e.data.action] !== 'undefined') {
 		B.Worker.onMsgHandlers[e.data.action](e);
 	} else {
-		throw new Error('Unknown action type recieved from worker');
+		throw new Error('Unknown action type recieved: ' + e.data.action);
 	}
 };

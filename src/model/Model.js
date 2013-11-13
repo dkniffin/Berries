@@ -1,5 +1,5 @@
 /*
- * B.model is the equivalent of L.map. It initializes a model to add data to.
+ * B.model is the equivalent of L.map. It initializes a model and adds the features to it
  */
 
 B.Model = B.Class.extend({
@@ -7,32 +7,93 @@ B.Model = B.Class.extend({
 	_loadManager: null,
 	_camera: null,
 	_origin: null,
+	_logger: null,
 	options: {
+		// Logging options
+		logContainer: document.body,
+		logOptions: {},
+
+		// three.js location (relative to the container with the worker js file)
+		threeJS: null,
+
+		// Camera options
 		initialCameraPos: new B.LatLng(39.97, -105.26),
-		initialCameraLook: new B.LatLng(40.0, -105.26)
+		initialCameraLook: new B.LatLng(40.0, -105.26),
+
+		// Terrain options
+		bounds: null,
+		srtmDataSource: null,
+
+		// OSM options
+		osmDataSource: null,
+
+		// Rendering options
+		render: {
+			buildings: true,
+			fireHydrants: true,
+			roads: true
+		},
+		modelContainer: document.body,
+		texturePath: null
 	},
 
-	initialize: function (id, options) {
+	initialize: function (options) {
 		options = B.setOptions(this, options);
 
-		this._initContainer(id);
+		var logger = this._logger = new B.Logger(options.logContainer, options.logOptions);
+		logger.log('Logger initialized');
 
+		this._initContainer(options.modelContainer);
+
+		logger.log('Initializing core THREE.js components');
 		this._initThree();
+		logger.log('Initializing camera');
 		this._initCamera();
 
 		// For debugging
+		//logger.log('Adding XYZ axes');
 		//this._addAxis('x', 1000000, 0xff0000);
 		//this._addAxis('y', 1000000, 0x00ff00);
 		//this._addAxis('z', 1000000, 0x0000ff);
 
+		// Add sunlight to the scene
+		logger.log('Adding sunlight');
 		var light = new B.Light();
 		light._light.position = new THREE.Vector3(0, 0, 0);
 		light._light.target.position = new THREE.Vector3(-100, 100, -100); // This should determine the sun angle
-
-		//light.addTo(this);
 		this._camera.add(light._light);
-
 		this._scene.add(this._camera);
+
+		// Add three.js to the web worker
+		B.Worker.sendMsg({
+			action: 'loadLibrary',
+			url: options.threeJS
+		});
+
+		var model = this;
+		// Generate the terrain
+		B.Worker.addMsgHandler('generateTerrain', function (e) {
+			// When the terrain is finished...
+			console.log(e);
+			var terrain = new B.Terrain(e.data.geometryParts, options.bounds.getSouthWest());
+
+			logger.log('Adding terrain to the model');
+			model.addTerrain(terrain);
+
+			// Generate and add everyting else from the OSM data
+
+			logger.hide();
+			model._startAnimation();
+		});
+		B.Worker.sendMsg({
+			action: 'generateTerrain',
+			srtmDataSource: options.srtmDataSource,
+			options: {
+				numVertsX: 200,
+				numVertsY: 400,
+				bounds: [options.bounds._southWest, options.bounds._northEast]
+			}
+		});
 
 		return this;
 		
@@ -91,9 +152,9 @@ B.Model = B.Class.extend({
 		var container = this._container = B.DomUtil.get(id);
 
 		if (!container) {
-			throw new Error('Map container not found.');
+			throw new Error('Model container not found.');
 		} else if (container._berries) {
-			throw new Error('Map container is already initialized.');
+			throw new Error('Model container is already initialized.');
 		}
 		container._berries = true;
 	},
@@ -140,6 +201,7 @@ B.Model = B.Class.extend({
 	},
 	_startAnimation: function () {
 		var self = this;
+		console.log(self._scene);
 		var animateFunc = function () {
 			window.requestAnimationFrame(animateFunc);
 			self._renderer.render(self._scene, self._camera);

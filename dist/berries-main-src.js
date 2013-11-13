@@ -200,57 +200,59 @@ B.Util = {
 	emptyImageUrl: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='
 };
 
-(function () {
+if (typeof window !== 'undefined') {
+	(function () {
 
-	// inspired by http://paulirish.com/2011/requestanimationframe-for-smart-animating/
+		// inspired by http://paulirish.com/2011/requestanimationframe-for-smart-animating/
 
-	function getPrefixed(name) {
-		var i, fn,
-		    prefixes = ['webkit', 'moz', 'o', 'ms'];
+		function getPrefixed(name) {
+			var i, fn,
+			    prefixes = ['webkit', 'moz', 'o', 'ms'];
 
-		for (i = 0; i < prefixes.length && !fn; i++) {
-			fn = window[prefixes[i] + name];
+			for (i = 0; i < prefixes.length && !fn; i++) {
+				fn = window[prefixes[i] + name];
+			}
+
+			return fn;
 		}
 
-		return fn;
-	}
+		var lastTime = 0;
 
-	var lastTime = 0;
+		function timeoutDefer(fn) {
+			var time = +new Date(),
+			    timeToCall = Math.max(0, 16 - (time - lastTime));
 
-	function timeoutDefer(fn) {
-		var time = +new Date(),
-		    timeToCall = Math.max(0, 16 - (time - lastTime));
-
-		lastTime = time + timeToCall;
-		return window.setTimeout(fn, timeToCall);
-	}
-
-	var requestFn = window.requestAnimationFrame ||
-	        getPrefixed('RequestAnimationFrame') || timeoutDefer;
-
-	var cancelFn = window.cancelAnimationFrame ||
-	        getPrefixed('CancelAnimationFrame') ||
-	        getPrefixed('CancelRequestAnimationFrame') ||
-	        function (id) { window.clearTimeout(id); };
-
-
-	B.Util.requestAnimFrame = function (fn, context, immediate, element) {
-		fn = B.bind(fn, context);
-
-		if (immediate && requestFn === timeoutDefer) {
-			fn();
-		} else {
-			return requestFn.call(window, fn, element);
+			lastTime = time + timeToCall;
+			return window.setTimeout(fn, timeToCall);
 		}
-	};
 
-	B.Util.cancelAnimFrame = function (id) {
-		if (id) {
-			cancelFn.call(window, id);
-		}
-	};
+		var requestFn = window.requestAnimationFrame ||
+		        getPrefixed('RequestAnimationFrame') || timeoutDefer;
 
-}());
+		var cancelFn = window.cancelAnimationFrame ||
+		        getPrefixed('CancelAnimationFrame') ||
+		        getPrefixed('CancelRequestAnimationFrame') ||
+		        function (id) { window.clearTimeout(id); };
+
+
+		B.Util.requestAnimFrame = function (fn, context, immediate, element) {
+			fn = B.bind(fn, context);
+
+			if (immediate && requestFn === timeoutDefer) {
+				fn();
+			} else {
+				return requestFn.call(window, fn, element);
+			}
+		};
+
+		B.Util.cancelAnimFrame = function (id) {
+			if (id) {
+				cancelFn.call(window, id);
+			}
+		};
+
+	}());
+}
 
 // shortcuts for most used utility functions
 B.extend = B.Util.extend;
@@ -472,8 +474,8 @@ B.Worker = {
 	addMsgHandler: function (id, func) {
 		B.Worker.onMsgHandlers[id] = func;
 	},
-	sendMsg: function (msg) {
-		B.Worker.w.postMessage(msg);
+	sendMsg: function (msg, transObjs) {
+		B.Worker.w.postMessage(msg, transObjs);
 	}
 };
 
@@ -481,7 +483,7 @@ B.Worker.w.onmessage = function (e) {
 	if (typeof B.Worker.onMsgHandlers[e.data.action] !== 'undefined') {
 		B.Worker.onMsgHandlers[e.data.action](e);
 	} else {
-		throw new Error('Unknown action type recieved from worker');
+		throw new Error('Unknown action type recieved: ' + e.data.action);
 	}
 };
 
@@ -502,8 +504,8 @@ B.Logger = B.Class.extend({
 			info: '000000',
 			warn: 'ffaa00',
 			error: 'ff0000'
-		}
-
+		},
+		onMsg: null
 	},
 	initialize: function (id, options) {
 		options = B.setOptions(this, options);
@@ -520,6 +522,12 @@ B.Logger = B.Class.extend({
 
 		document.getElementsByTagName('head')[0].appendChild(style);
 
+
+		B.Worker.addMsgHandler('log', function (e) {
+			this.log(e.data.message, e.data.type);
+			options.onMsg(e);
+		}.bind(this));
+
 	},
 	log: function (message, type) {
 		var options = this.options;
@@ -531,6 +539,7 @@ B.Logger = B.Class.extend({
 
 
 		this._logFeedObj.appendChild(messageObj);
+		this._logFeedObj.scrollTop = this._logFeedObj.scrollHeight;
 		console[type](message);
 	},
 	hide: function () {
@@ -541,14 +550,6 @@ B.Logger = B.Class.extend({
 		this._logFeedObj.style.display = 'display';
 	}
 	
-});
-
-B.logger = function (id, options) {
-	return new B.Logger(id, options);
-};
-
-B.Worker.addMsgHandler('log', function (e) {
-	console.log(e.data.message);
 });
 
 /* Load all pre-made models */
@@ -1870,20 +1871,8 @@ B.DefaultControl = B.Class.extend({
 	}
 });
 
-/* 
-	A class to define global berries options
-*/
-B.Options = {
-	render: {
-		buildings: true,
-		fireHydrants: true,
-		roads: true
-	},
-	bounds: null,
-};
-
 /*
- * B.model is the equivalent of L.map. It initializes a model to add data to.
+ * B.model is the equivalent of L.map. It initializes a model and adds the features to it
  */
 
 B.Model = B.Class.extend({
@@ -1891,32 +1880,93 @@ B.Model = B.Class.extend({
 	_loadManager: null,
 	_camera: null,
 	_origin: null,
+	_logger: null,
 	options: {
+		// Logging options
+		logContainer: document.body,
+		logOptions: {},
+
+		// three.js location (relative to the container with the worker js file)
+		threeJS: null,
+
+		// Camera options
 		initialCameraPos: new B.LatLng(39.97, -105.26),
-		initialCameraLook: new B.LatLng(40.0, -105.26)
+		initialCameraLook: new B.LatLng(40.0, -105.26),
+
+		// Terrain options
+		bounds: null,
+		srtmDataSource: null,
+
+		// OSM options
+		osmDataSource: null,
+
+		// Rendering options
+		render: {
+			buildings: true,
+			fireHydrants: true,
+			roads: true
+		},
+		modelContainer: document.body,
+		texturePath: null
 	},
 
-	initialize: function (id, options) {
+	initialize: function (options) {
 		options = B.setOptions(this, options);
 
-		this._initContainer(id);
+		var logger = this._logger = new B.Logger(options.logContainer, options.logOptions);
+		logger.log('Logger initialized');
 
+		this._initContainer(options.modelContainer);
+
+		logger.log('Initializing core THREE.js components');
 		this._initThree();
+		logger.log('Initializing camera');
 		this._initCamera();
 
 		// For debugging
+		//logger.log('Adding XYZ axes');
 		//this._addAxis('x', 1000000, 0xff0000);
 		//this._addAxis('y', 1000000, 0x00ff00);
 		//this._addAxis('z', 1000000, 0x0000ff);
 
+		// Add sunlight to the scene
+		logger.log('Adding sunlight');
 		var light = new B.Light();
 		light._light.position = new THREE.Vector3(0, 0, 0);
 		light._light.target.position = new THREE.Vector3(-100, 100, -100); // This should determine the sun angle
-
-		//light.addTo(this);
 		this._camera.add(light._light);
-
 		this._scene.add(this._camera);
+
+		// Add three.js to the web worker
+		B.Worker.sendMsg({
+			action: 'loadLibrary',
+			url: options.threeJS
+		});
+
+		var model = this;
+		// Generate the terrain
+		B.Worker.addMsgHandler('generateTerrain', function (e) {
+			// When the terrain is finished...
+			console.log(e);
+			var terrain = new B.Terrain(e.data.geometryParts, options.bounds.getSouthWest());
+
+			logger.log('Adding terrain to the model');
+			model.addTerrain(terrain);
+
+			// Generate and add everyting else from the OSM data
+
+			logger.hide();
+			model._startAnimation();
+		});
+		B.Worker.sendMsg({
+			action: 'generateTerrain',
+			srtmDataSource: options.srtmDataSource,
+			options: {
+				numVertsX: 200,
+				numVertsY: 400,
+				bounds: [options.bounds._southWest, options.bounds._northEast]
+			}
+		});
 
 		return this;
 		
@@ -1975,9 +2025,9 @@ B.Model = B.Class.extend({
 		var container = this._container = B.DomUtil.get(id);
 
 		if (!container) {
-			throw new Error('Map container not found.');
+			throw new Error('Model container not found.');
 		} else if (container._berries) {
-			throw new Error('Map container is already initialized.');
+			throw new Error('Model container is already initialized.');
 		}
 		container._berries = true;
 	},
@@ -2024,6 +2074,7 @@ B.Model = B.Class.extend({
 	},
 	_startAnimation: function () {
 		var self = this;
+		console.log(self._scene);
 		var animateFunc = function () {
 			window.requestAnimationFrame(animateFunc);
 			self._renderer.render(self._scene, self._camera);
@@ -2046,51 +2097,27 @@ B.model = function (id, options) {
  */
 
 B.Terrain = B.Class.extend({
-	options: {
-		dataType: 'SRTM_raster'
-	},
-	initialize: function (data, bounds, options) {
-		// Data - an array of elevations
-		// Bounds - the lat/lon bounds of the terrain
+	options: {},
+	initialize: function (geoParts, origin, options) {
+		// terrainMesh - A mesh for the terrain, generated by the worker
 		options = B.setOptions(this, options);
 
-		// Read in the data
-		this._data = data;
-		this._bounds = bounds;
+		// Rebuild the geometry from it's parts
+		this._geometry = new THREE.PlaneGeometry(geoParts.width, geoParts.height,
+			geoParts.numVertsX - 1, geoParts.numVertsY - 1);
+		this._geometry.vertices = geoParts.vertices;
+		this._geometry.faces = geoParts.faces;
 
-		// Set the origin to the southwest corner
-		this._origin = this._bounds.getSouthWest();
+		this._numVertsX = geoParts.numVertsX;
+		this._numVertsY = geoParts.numVertsY;
+		this._gridSpaceX = geoParts.gridSpaceX;
+		this._gridSpaceY = geoParts.gridSpaceY;
 
-		// Calculate the width and height of the bounds
-		var width = this._origin.distanceTo(this._bounds.getSouthEast());
-		var height = this._origin.distanceTo(this._bounds.getNorthWest());
+		this._origin = origin;
 
-		// Create the geometry
-		// TODO: abstract the 199 and 399 out
-		this._numVertsX = 200;
-		this._numVertsY = 400;
-		this._geometry = new THREE.PlaneGeometry(width, height, this._numVertsX - 1, this._numVertsY - 1);
-		this._gridSpaceX = width / (this._numVertsX - 1);
-		this._gridSpaceY = height / (this._numVertsY - 1);
-
-		// Set the heights of each vertex
-		for (var i = 0, l = this._geometry.vertices.length; i < l; i++) {
-			this._geometry.vertices[i].z = this._data[i] / 65535 * 4347;
-		}
-		//THREE.GeometryUtils.triangulateQuads(this._geometry);
-		this._geometry.computeFaceNormals();
-		this._geometry.computeVertexNormals();
-
-		// Create the mesh
 		this._createMesh();
 
-		// Enable shadows for the ground
-		this._mesh.castShadow = true;
-		this._mesh.receiveShadow = true;
-
-		// Move the mesh so that the origin is in the southwest corner
-		this._mesh.translateX(width / 2);
-		this._mesh.translateY(height / 2);
+		return this;
 	},
 	heightAt: function (lat, lon, xym) {
 		// Return the elevation of the terrain at the given lat/lon
@@ -2142,7 +2169,6 @@ B.Terrain = B.Class.extend({
 		// Calculate the elevation based on a linear interpolation between the surrounding points
 		surfacePt.z = lerp(lerp(nw.z, se.z, (1 + px - py) / 2), px > (1 - py) ? ne.z : se.z, Math.abs(1 - px - py));
 		
-
 		return surfacePt.z;
 	},
 	_copyVertexByValue: function (vertex) {
@@ -2164,7 +2190,6 @@ B.Terrain = B.Class.extend({
 	},
 	addTo: function (model) {
 		model.addTerrain(this);
-		console.log(model);
 		return this;
 	},
 	_createMesh: function () {
@@ -2180,6 +2205,14 @@ B.Terrain = B.Class.extend({
 			/*wireframe: true,
 			color: 0x0000ff*/
 		}));
+
+		// Enable shadows for the ground
+		this._mesh.castShadow = true;
+		this._mesh.receiveShadow = true;
+
+		// Move the mesh so that the origin is in the southwest corner
+		this._mesh.translateX(this._geometry.width / 2);
+		this._mesh.translateY(this._geometry.height / 2);
 	},
 	_latlon2meters: function (lat, lon) {
 		// This function takes a lat/lon pair, and converts it to meters,
@@ -2197,10 +2230,6 @@ B.Terrain = B.Class.extend({
 	}
 
 });
-
-B.terrain = function (id, options) {
-	return new B.Terrain(id, options);
-};
 
 
 /*

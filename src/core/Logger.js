@@ -14,8 +14,8 @@ B.Logger = B.Class.extend({
 			info: '000000',
 			warn: 'ffaa00',
 			error: 'ff0000'
-		}
-
+		},
+		onMsg: null
 	},
 	initialize: function (id, options) {
 		options = B.setOptions(this, options);
@@ -32,6 +32,12 @@ B.Logger = B.Class.extend({
 
 		document.getElementsByTagName('head')[0].appendChild(style);
 
+
+		B.Worker.addMsgHandler('log', function (e) {
+			this.log(e.data.message, e.data.type);
+			options.onMsg(e);
+		}.bind(this));
+
 	},
 	log: function (message, type) {
 		var options = this.options;
@@ -43,6 +49,7 @@ B.Logger = B.Class.extend({
 
 
 		this._logFeedObj.appendChild(messageObj);
+		this._logFeedObj.scrollTop = this._logFeedObj.scrollHeight;
 		console[type](message);
 	},
 	hide: function () {
@@ -53,12 +60,4 @@ B.Logger = B.Class.extend({
 		this._logFeedObj.style.display = 'display';
 	}
 	
-});
-
-B.logger = function (id, options) {
-	return new B.Logger(id, options);
-};
-
-B.Worker.addMsgHandler('log', function (e) {
-	console.log(e.data.message);
 });
