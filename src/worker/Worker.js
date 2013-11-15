@@ -5,7 +5,9 @@ B.Worker = {
 	addMsgHandler: function (id, func) {
 		B.Worker.onMsgHandlers[id] = func;
 	},
-	sendMsg: function (msg, transObjs) {
+	sendMsg: function (msg, callback, transObjs) {
+		// If a callback is given, define a msgHandler for it
+		if (callback) { this.addMsgHandler(msg.action, callback); }
 		B.Worker.w.postMessage(msg, transObjs);
 	}
 };

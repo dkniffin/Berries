@@ -31,7 +31,7 @@ B.Worker.addMsgHandler('generateTerrain', function (e) {
 			var height = origin.distanceTo(bounds.getNorthWest());
 
 			// Create the geometry
-			B.Logger.log('debug', 'Creating the terrain geometry');
+			B.Logger.log('log', 'Creating the terrain geometry');
 			var geometry = terrain.geometry = new THREE.PlaneGeometry(width, height, numVertsX - 1, numVertsY - 1);
 			var gridSpaceX = width / (numVertsX - 1);
 			var gridSpaceY = height / (numVertsY - 1);
@@ -46,7 +46,7 @@ B.Worker.addMsgHandler('generateTerrain', function (e) {
 			geometry.computeFaceNormals();
 			geometry.computeVertexNormals();
 				
-			B.Logger.log('debug', 'Returning geometry');
+			B.Logger.log('debug', 'Returning geometry...sorry, this is gonna take a while...');
 			// TODO: This part takes a long time to run. At some point, it
 			// should be probably rewritten so that the terrain is a
 			// bufferGeometry

@@ -10,7 +10,8 @@ var deps = {
 		desc: 'Core components of web worker'
 	},
 	Generators: {
-		src: ['worker/generateTerrain.js'],
+		src: ['worker/generateTerrain.js',
+			  'worker/generateBuilding.js'],
 		desc: 'code to build various parts of the model',
 		deps: ['Core']
 	}

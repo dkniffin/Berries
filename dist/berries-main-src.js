@@ -474,7 +474,9 @@ B.Worker = {
 	addMsgHandler: function (id, func) {
 		B.Worker.onMsgHandlers[id] = func;
 	},
-	sendMsg: function (msg, transObjs) {
+	sendMsg: function (msg, callback, transObjs) {
+		// If a callback is given, define a msgHandler for it
+		if (callback) { this.addMsgHandler(msg.action, callback); }
 		B.Worker.w.postMessage(msg, transObjs);
 	}
 };
@@ -1945,19 +1947,6 @@ B.Model = B.Class.extend({
 
 		var model = this;
 		// Generate the terrain
-		B.Worker.addMsgHandler('generateTerrain', function (e) {
-			// When the terrain is finished...
-			console.log(e);
-			var terrain = new B.Terrain(e.data.geometryParts, options.bounds.getSouthWest());
-
-			logger.log('Adding terrain to the model');
-			model.addTerrain(terrain);
-
-			// Generate and add everyting else from the OSM data
-
-			logger.hide();
-			model._startAnimation();
-		});
 		B.Worker.sendMsg({
 			action: 'generateTerrain',
 			srtmDataSource: options.srtmDataSource,
@@ -1966,10 +1955,50 @@ B.Model = B.Class.extend({
 				numVertsY: 400,
 				bounds: [options.bounds._southWest, options.bounds._northEast]
 			}
+		}, function (e) {
+			// When the terrain is finished being generated, add it to the model
+			var terrain = new B.Terrain(e.data.geometryParts, options.bounds.getSouthWest());
+			logger.log('Adding terrain to the model');
+			model.addTerrain(terrain);
+
+			// Then generate and add everyting else from the OSM data
+			/*
+			for (var feature in options.render) {
+				var featureOptions = options.render[feature];
+				if (featureOptions === false) {
+					// Skip disabled features
+					continue;
+				} else if (featureOptions === true) {
+					// If it's simply enabled (no options given), use an empty hash
+					featureOptions = {};
+				}
+
+				// Do some formatting to create the action name
+				// eg: if feature is "buildings", we want "generateBuildings"
+
+				// Uppercase the first letter, and prepend "generate"
+				var action = 'generate' + feature.charAt(0).toUpperCase() + feature.slice(1);
+
+				B.Worker.addMsgHandler(action, this.objMsgHandler);
+				B.Worker.sendMsg({
+					action: action,
+					options: featureOptions
+				});
+			}
+			*/
+
+
+
+
+			logger.hide();
+			model._startAnimation();
 		});
 
 		return this;
 		
+	},
+	objMsgHandler: function (e) {
+		console.log(e); // Placeholder
 	},
 	addTerrain: function (terrain) {
 		// Save the terrain reference locally
