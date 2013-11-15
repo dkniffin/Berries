@@ -86,37 +86,39 @@ B.Model = B.Class.extend({
 			logger.log('Adding terrain to the model');
 			model.addTerrain(terrain);
 
-			// Then generate and add everyting else from the OSM data
-			/*
-			for (var feature in options.render) {
-				var featureOptions = options.render[feature];
-				if (featureOptions === false) {
-					// Skip disabled features
-					continue;
-				} else if (featureOptions === true) {
-					// If it's simply enabled (no options given), use an empty hash
-					featureOptions = {};
+			B.Worker.sendMsg({
+				action: 'loadOSMData',
+				url: options.osmDataSource
+			}, function () {
+				// Then generate and add everyting else from the OSM data
+				/*
+				for (var feature in options.render) {
+					var featureOptions = options.render[feature];
+					if (featureOptions === false) {
+						// Skip disabled features
+						continue;
+					} else if (featureOptions === true) {
+						// If it's simply enabled (no options given), use an empty hash
+						featureOptions = {};
+					}
+
+					// Do some formatting to create the action name
+					// eg: if feature is "buildings", we want "generateBuildings"
+
+					// Uppercase the first letter, and prepend "generate"
+					var action = 'generate' + feature.charAt(0).toUpperCase() + feature.slice(1);
+
+					B.Worker.addMsgHandler(action, this.objMsgHandler);
+					B.Worker.sendMsg({
+						action: action,
+						options: featureOptions
+					});
 				}
+				*/
 
-				// Do some formatting to create the action name
-				// eg: if feature is "buildings", we want "generateBuildings"
-
-				// Uppercase the first letter, and prepend "generate"
-				var action = 'generate' + feature.charAt(0).toUpperCase() + feature.slice(1);
-
-				B.Worker.addMsgHandler(action, this.objMsgHandler);
-				B.Worker.sendMsg({
-					action: action,
-					options: featureOptions
-				});
-			}
-			*/
-
-
-
-
-			logger.hide();
-			model._startAnimation();
+				logger.hide();
+				model._startAnimation();
+			});
 		});
 
 		return this;

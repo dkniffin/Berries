@@ -3,6 +3,7 @@ var deps = {
 		src: ['worker/WorkerB.js',
 		      'worker/Worker.js',
 		      'worker/WorkerHelper.js',
+		      'worker/loadOSMData.js',
 		      'core/Class.js',
 		      'core/Util.js',
 		      'geo/LatLng.js',
