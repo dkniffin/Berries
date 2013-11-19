@@ -46,7 +46,8 @@ B.Worker.addMsgHandler('generateTerrain', function (e) {
 			geometry.computeFaceNormals();
 			geometry.computeVertexNormals();
 				
-			B.Logger.log('debug', 'Returning geometry...sorry, this is gonna take a while...');
+			B.Logger.log('debug', 'Returning geometry...');
+			B.Logger.log('debug', 'Sorry, this is gonna take a while...it needs to be refactored...');
 			// TODO: This part takes a long time to run. At some point, it
 			// should be probably rewritten so that the terrain is a
 			// bufferGeometry

@@ -29,9 +29,15 @@ B.Model = B.Class.extend({
 
 		// Rendering options
 		render: {
-			buildings: true,
-			fireHydrants: true,
-			roads: true
+			buildings: {
+				defaultBuildingMaterial: B.Materials.CONCRETEWHITE,
+				heightOptions: {
+					levels: 2,
+					levelHeight: 3.048
+				}
+			},
+			fireHydrants: false,
+			roads: false
 		},
 		modelContainer: document.body,
 		texturePath: null
@@ -69,6 +75,9 @@ B.Model = B.Class.extend({
 			action: 'loadLibrary',
 			url: options.threeJS
 		});
+		B.Worker.sendMsg({
+			action: 'loadDefaultMats'
+		});
 
 		var model = this;
 		// Generate the terrain
@@ -82,14 +91,16 @@ B.Model = B.Class.extend({
 			}
 		}, function (e) {
 			// When the terrain is finished being generated, add it to the model
-			var terrain = new B.Terrain(e.data.geometryParts, options.bounds.getSouthWest());
+			var terrain = new B.Terrain(e.data.geometryParts, options.bounds);
 			logger.log('Adding terrain to the model');
 			model.addTerrain(terrain);
 
 			B.Worker.sendMsg({
 				action: 'loadOSMData',
 				url: options.osmDataSource
-			}, function () {
+			}, function (e) {
+				var dc = new B.OSMDataContainer(e.data.data);
+
 				// Then generate and add everyting else from the OSM data
 				/*
 				for (var feature in options.render) {
@@ -108,13 +119,43 @@ B.Model = B.Class.extend({
 					// Uppercase the first letter, and prepend "generate"
 					var action = 'generate' + feature.charAt(0).toUpperCase() + feature.slice(1);
 
-					B.Worker.addMsgHandler(action, this.objMsgHandler);
 					B.Worker.sendMsg({
 						action: action,
 						options: featureOptions
-					});
+					}, this.objMsgHandler);
 				}
 				*/
+
+				// Generate buildings
+				var buildings = dc.get('buildings');
+
+
+				for (var i in buildings) {
+					var building = buildings[i];
+
+					// Get 3D points for the building outline
+					var outlinePoints = [];
+					var vec, lat, lon;
+					for (var j in building.nodes) {
+						var nodeId = building.nodes[j];
+						var node = dc.getNode(nodeId);
+
+						lat = Number(node.lat);
+						lon = Number(node.lon);
+						vec = terrain.worldVector(lat, lon);
+						//vec.z += 1;
+						outlinePoints.push(vec);
+					}
+
+
+					B.Worker.sendMsg({
+						action: 'generateBuilding',
+						outlinePoints: outlinePoints,
+						tags: building.tags,
+						options: options.render.buildings
+					}, this.objMsgHandler);
+				}
+
 
 				logger.hide();
 				model._startAnimation();

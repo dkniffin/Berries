@@ -36,6 +36,10 @@ B.Worker.addMsgHandler('loadLibrary', function (e) {
 	importScripts(e.data.url);
 });
 
+B.Worker.addMsgHandler('loadDefaultMats', function () {
+	B.Materials.initDefaults();
+});
+
 B.Logger = {
 	log: function (type, message) {
 		B.Worker.sendMsg({
@@ -49,12 +53,27 @@ B.Logger = {
 B.OSMData = {};
 
 B.Worker.addMsgHandler('loadOSMData', function (e) {
-	var dataURL = e.data.url;
+	var dataURL = B.OSMData.url = e.data.url;
 
 	var xhr = new XMLHttpRequest();
 	xhr.open('GET', dataURL, true);
 	xhr.onload = function () {
-		B.OSMData = JSON.parse(xhr.responseText);
+		var data = B.OSMData.data = JSON.parse(xhr.responseText);
+
+
+		// Deal with a rare bug where an OSM way has only one node
+		for (var i in data.ways) {
+			if (data.ways[i].nodes.length < 2) {
+				delete data.ways[i];
+				console.warn('Way ' + i + ' is a bug. It only has one node. Consider deleting it from OSM.');
+			}
+		}
+
+		B.Logger.log('info', 'Returning OSM Data');
+		B.Worker.sendMsg({
+			action: 'loadOSMData',
+			data: data
+		});
 	};
 	B.Logger.log('info', 'Loading OSM Data');
 	xhr.send(null);
@@ -646,6 +665,45 @@ B.latLngBounds = function (a, b) { // (LatLngBounds) or (LatLng, LatLng)
 };
 
 
+B.Materials = {
+	MATERIALS: [],
+	addMaterial: function (name, material) {
+		if (! name.match(/^[A-Z0-9]+$/)) {
+			throw new Error('Material name does not match regex. Must be all uppercase alpha-numerical characters');
+		}
+		if (typeof this[name] !== 'undefined') {
+			throw new Error('Material with name already exists. Use update instead.');
+		}
+
+		// Add the material to the materials array
+		this.MATERIALS.push(material);
+
+		// Add the index as a attrib for B.Materials
+		this[name] = this.MATERIALS.length - 1;
+	},
+	updateMaterial: function (name, newMaterial) {
+		if (typeof this[name] === 'undefined') {
+			throw new Error('Material does not exist yet. Cannot update.');
+		} else {
+			var matindex = this[name];
+			this.MATERIALS[matindex] = newMaterial;
+		}
+	},
+	getMaterial: function (name) {
+		return B.Materials.MATERIALS[this[name]];
+	}
+
+};
+
+// Colored Materials
+B.Materials.initDefaults = function () {
+	B.Materials.addMaterial('BRICKRED', new THREE.MeshPhongMaterial({color: 0x841F27, side: THREE.DoubleSide }));
+	B.Materials.addMaterial('CONCRETEWHITE', new THREE.MeshPhongMaterial({color: 0xF2F2F2, side: THREE.DoubleSide }));
+	B.Materials.addMaterial('GLASSBLUE', new THREE.MeshPhongMaterial({color: 0x009DDD, side: THREE.DoubleSide }));
+	B.Materials.addMaterial('ASPHALTGREY', new THREE.MeshPhongMaterial({color: 0x757575, side: THREE.DoubleSide }));
+	B.Materials.addMaterial('WOODBROWN', new THREE.MeshPhongMaterial({color: 0xAE8F60, side: THREE.DoubleSide }));
+};
+
 B.Worker.addMsgHandler('generateTerrain', function (e) {
 	/* Input:
 	  - data
@@ -694,7 +752,8 @@ B.Worker.addMsgHandler('generateTerrain', function (e) {
 			geometry.computeFaceNormals();
 			geometry.computeVertexNormals();
 				
-			B.Logger.log('debug', 'Returning geometry...sorry, this is gonna take a while...');
+			B.Logger.log('debug', 'Returning geometry...');
+			B.Logger.log('debug', 'Sorry, this is gonna take a while...it needs to be refactored...');
 			// TODO: This part takes a long time to run. At some point, it
 			// should be probably rewritten so that the terrain is a
 			// bufferGeometry
@@ -718,7 +777,171 @@ B.Worker.addMsgHandler('generateTerrain', function (e) {
 	xhr.send(null);
 });
 
-B.Worker.addMsgHandler('generateBuildings', function () {
+
+var getHeight = function (tags, options) {
+	/* Return the height of the building
+
+	   In descending order of preference:
+	   - height=* tag
+	   - levels * levelheight calculation
+	    - levels based on:
+	     - levels=* tag
+	     - building=* tags (building type)
+	     - options.levels
+	    - levelheight based on:
+	     - options.levelHeight
+	*/
+	var height = options.levels * options.levelHeight; // Default to input options
+	if (tags) {
+		if (tags.height) {
+			// If the height tag is defined, use it
+			// TODO: Check for various values (not meters)
+			height = tags.height;
+		} else {
+			// Otherwise use levels for calculation
+			var levels = options.levels;
+			if (tags['building:levels']) {
+				levels = tags['building:levels'];
+			} else if (tags.building) {
+				switch (tags.building) {
+				case 'house':
+				case 'garage':
+				case 'roof': // TODO: Handle this separately
+				case 'hut':
+					levels = 1;
+					break;
+				case 'school':
+					levels = 2;
+					break;
+				case 'apartments':
+				case 'office':
+					levels = 3;
+					break;
+				case 'hospital':
+					levels = 4;
+					break;
+				case 'hotel':
+					levels = 10;
+					break;
+				}
+			}
+
+			var levelHeight = options.levelHeight;
+
+			height = levels * levelHeight;
+		}
+	}
+	return height;
+};
+
+var getWallMaterialIndex = function (tags, defaultMat) {
+	/* 
+	Determine what material (or material index) should be used for the 
+	walls of the building
+	*/
+	var mat;
+	
+	switch (tags['building:material']) {
+	case 'glass':
+		mat = B.Materials.GLASSBLUE;
+		break;
+	case 'wood':
+		mat = B.Materials.WOODBROWN;
+		break;
+	case 'brick':
+		mat = B.Materials.BRICKRED;
+		break;
+	case 'concrete':
+		mat = B.Materials.CONCRETEWHITE;
+		break;
+	default:
+		mat = defaultMat;
+		break;
+	}
+	
+	return mat;
+};
+
+B.Worker.addMsgHandler('generateBuilding', function (e) {
+	B.Logger.log('info', 'Generating Building');
+	var options = e.data.options;
+	B.Logger.log('info', options);
+	var tags = e.data.tags;
+	var outlinePoints = e.data.outlinePoints;
+
+	var buildingGeometry =  new THREE.Geometry();
+	var i, j;
+
+	// Some logic to determine the height of the building
+	var height = getHeight(tags, options.heightOptions);
+	
+
+	// Use the lowest point of the building
+	var groundLevel = outlinePoints[0].z;
+	for (i in outlinePoints) {
+		if (outlinePoints[i].z < groundLevel) {
+			groundLevel = outlinePoints[i].z;
+		}
+	}
+	var roofLevel = groundLevel + height;
+
+	// Determine if the nodes are defined in a clockwise direction or CCW
+	var clockwise = THREE.Shape.Utils.isClockWise(outlinePoints);
+
+	if (!clockwise) {
+		// Reverse CCW point sets
+		outlinePoints.reverse();
+	}
+
+	var wallMaterialIndex = getWallMaterialIndex(tags, options.defaultBuildingMaterial);
+
+	var roofPointsCoplanar = [];
+	for (j in outlinePoints) {
+		j = Number(j);
+		var point = outlinePoints[j];
+		var point2i = (j !== (outlinePoints.length - 1)) ? j + 1 : 0;
+		var point2 = outlinePoints[point2i];
+
+		// Create the geometry for one wall
+		var wallGeometry = new THREE.Geometry();
+		wallGeometry.vertices.push(new THREE.Vector3(point.x, point.y, groundLevel));
+		wallGeometry.vertices.push(new THREE.Vector3(point2.x, point2.y, groundLevel));
+		wallGeometry.vertices.push(new THREE.Vector3(point2.x, point2.y, roofLevel));
+		wallGeometry.vertices.push(new THREE.Vector3(point.x, point.y, roofLevel));
+
+		wallGeometry.faces.push(new THREE.Face3(2, 1, 0, null, null, wallMaterialIndex));
+		wallGeometry.faces.push(new THREE.Face3(3, 2, 0, null, null, wallMaterialIndex));
+
+		// Append it to the rest of the building geometry
+		THREE.GeometryUtils.merge(buildingGeometry, wallGeometry);
+
+		// create a 2D point for creating the roof
+		roofPointsCoplanar.push(new THREE.Vector2(point.x, point.y));
+	}
+
+
+	// Create the geometry for the roof
+	var roofGeometry = new THREE.Geometry();
+	var roofShape = new THREE.Shape(roofPointsCoplanar);
+
+	var shapePoints = roofShape.extractPoints();
+	var faces = THREE.Shape.Utils.triangulateShape(shapePoints.shape, shapePoints.holes);
+
+	for (i in shapePoints.shape) {
+		var vertex = shapePoints.shape[i];
+		roofGeometry.vertices.push(new THREE.Vector3(vertex.x, vertex.y, roofLevel));
+	}
+	for (i in faces) {
+		roofGeometry.faces.push(new THREE.Face3(faces[i][0], faces[i][1], faces[i][2],
+			null, null, B.Materials.ASPHALTGREY));
+	}
+
+	roofGeometry.computeFaceNormals();
+	THREE.GeometryUtils.merge(buildingGeometry, roofGeometry);
+	
+	buildingGeometry.computeFaceNormals();
+
+	B.Logger.log('debug', buildingGeometry);
 
 });
 

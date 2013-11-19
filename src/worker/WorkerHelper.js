@@ -5,6 +5,10 @@ B.Worker.addMsgHandler('loadLibrary', function (e) {
 	importScripts(e.data.url);
 });
 
+B.Worker.addMsgHandler('loadDefaultMats', function () {
+	B.Materials.initDefaults();
+});
+
 B.Logger = {
 	log: function (type, message) {
 		B.Worker.sendMsg({
