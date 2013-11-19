@@ -704,7 +704,8 @@ B.Materials.initDefaults = function () {
 	B.Materials.addMaterial('WOODBROWN', new THREE.MeshPhongMaterial({color: 0xAE8F60, side: THREE.DoubleSide }));
 };
 
-B.Worker.addMsgHandler('generateTerrain', function (e) {
+B.Worker.addMsgHandler('generateTerrain', function () {
+	B.Logger.log('debug', 'Got to generate terrain');
 	/* Input:
 	  - data
 	  - options
@@ -712,8 +713,9 @@ B.Worker.addMsgHandler('generateTerrain', function (e) {
 	    - numVertsX
 	    - numVertsY
 	*/
-	var options = e.data.options;
-	/* global terrain:true */
+	//var options = e.data.options;
+	
+	/*
 	terrain = {};
 
 	var xhr = new XMLHttpRequest();
@@ -775,94 +777,19 @@ B.Worker.addMsgHandler('generateTerrain', function (e) {
 		}
 	};
 	xhr.send(null);
+	*/
+
+	B.Worker.sendMsg({
+		action: 'generateTerrain'
+	});
 });
 
 
-var getHeight = function (tags, options) {
-	/* Return the height of the building
 
-	   In descending order of preference:
-	   - height=* tag
-	   - levels * levelheight calculation
-	    - levels based on:
-	     - levels=* tag
-	     - building=* tags (building type)
-	     - options.levels
-	    - levelheight based on:
-	     - options.levelHeight
-	*/
-	var height = options.levels * options.levelHeight; // Default to input options
-	if (tags) {
-		if (tags.height) {
-			// If the height tag is defined, use it
-			// TODO: Check for various values (not meters)
-			height = tags.height;
-		} else {
-			// Otherwise use levels for calculation
-			var levels = options.levels;
-			if (tags['building:levels']) {
-				levels = tags['building:levels'];
-			} else if (tags.building) {
-				switch (tags.building) {
-				case 'house':
-				case 'garage':
-				case 'roof': // TODO: Handle this separately
-				case 'hut':
-					levels = 1;
-					break;
-				case 'school':
-					levels = 2;
-					break;
-				case 'apartments':
-				case 'office':
-					levels = 3;
-					break;
-				case 'hospital':
-					levels = 4;
-					break;
-				case 'hotel':
-					levels = 10;
-					break;
-				}
-			}
 
-			var levelHeight = options.levelHeight;
-
-			height = levels * levelHeight;
-		}
-	}
-	return height;
-};
-
-var getWallMaterialIndex = function (tags, defaultMat) {
-	/* 
-	Determine what material (or material index) should be used for the 
-	walls of the building
-	*/
-	var mat;
-	
-	switch (tags['building:material']) {
-	case 'glass':
-		mat = B.Materials.GLASSBLUE;
-		break;
-	case 'wood':
-		mat = B.Materials.WOODBROWN;
-		break;
-	case 'brick':
-		mat = B.Materials.BRICKRED;
-		break;
-	case 'concrete':
-		mat = B.Materials.CONCRETEWHITE;
-		break;
-	default:
-		mat = defaultMat;
-		break;
-	}
-	
-	return mat;
-};
-
-B.Worker.addMsgHandler('generateBuilding', function (e) {
+B.Worker.addMsgHandler('generateBuilding', function () {
+	//B.Logger.log('debug', 'Got to generateBuilding');
+	/*
 	B.Logger.log('info', 'Generating Building');
 	var options = e.data.options;
 	B.Logger.log('info', options);
@@ -942,6 +869,13 @@ B.Worker.addMsgHandler('generateBuilding', function (e) {
 	buildingGeometry.computeFaceNormals();
 
 	B.Logger.log('debug', buildingGeometry);
-
+	*/
+	var i = 0;
+	while (i < 1) {
+		i++;
+	}
+	B.Worker.sendMsg({
+		action: 'generateBuilding'
+	});
 });
 

@@ -1,4 +1,5 @@
-B.Worker.addMsgHandler('generateTerrain', function (e) {
+B.Worker.addMsgHandler('generateTerrain', function () {
+	B.Logger.log('debug', 'Got to generate terrain');
 	/* Input:
 	  - data
 	  - options
@@ -6,8 +7,9 @@ B.Worker.addMsgHandler('generateTerrain', function (e) {
 	    - numVertsX
 	    - numVertsY
 	*/
-	var options = e.data.options;
-	/* global terrain:true */
+	//var options = e.data.options;
+	
+	/*
 	terrain = {};
 
 	var xhr = new XMLHttpRequest();
@@ -69,4 +71,9 @@ B.Worker.addMsgHandler('generateTerrain', function (e) {
 		}
 	};
 	xhr.send(null);
+	*/
+
+	B.Worker.sendMsg({
+		action: 'generateTerrain'
+	});
 });

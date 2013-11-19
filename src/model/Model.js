@@ -45,6 +45,7 @@ B.Model = B.Class.extend({
 
 	initialize: function (options) {
 		options = B.setOptions(this, options);
+		this._origin = options.bounds.getSouthWest();
 
 		var logger = this._logger = new B.Logger(options.logContainer, options.logOptions);
 		logger.log('Logger initialized');
@@ -80,6 +81,9 @@ B.Model = B.Class.extend({
 		});
 
 		var model = this;
+		var terrain = this._terrain = new B.Terrain(options.bounds);
+
+
 		// Generate the terrain
 		B.Worker.sendMsg({
 			action: 'generateTerrain',
@@ -90,91 +94,53 @@ B.Model = B.Class.extend({
 				bounds: [options.bounds._southWest, options.bounds._northEast]
 			}
 		}, function (e) {
-			// When the terrain is finished being generated, add it to the model
-			var terrain = new B.Terrain(e.data.geometryParts, options.bounds);
+			// When the terrain is finished being generated...
+
+			// Build the mesh for it
+			logger.log('Building terrain mesh');
+			terrain.buildMesh(e.data.geometryParts);
+
+
+			// Add it to the model
 			logger.log('Adding terrain to the model');
 			model.addTerrain(terrain);
 
-			B.Worker.sendMsg({
-				action: 'loadOSMData',
-				url: options.osmDataSource
-			}, function (e) {
-				var dc = new B.OSMDataContainer(e.data.data);
-
-				// Then generate and add everyting else from the OSM data
-				/*
-				for (var feature in options.render) {
-					var featureOptions = options.render[feature];
-					if (featureOptions === false) {
-						// Skip disabled features
-						continue;
-					} else if (featureOptions === true) {
-						// If it's simply enabled (no options given), use an empty hash
-						featureOptions = {};
-					}
-
-					// Do some formatting to create the action name
-					// eg: if feature is "buildings", we want "generateBuildings"
-
-					// Uppercase the first letter, and prepend "generate"
-					var action = 'generate' + feature.charAt(0).toUpperCase() + feature.slice(1);
-
-					B.Worker.sendMsg({
-						action: action,
-						options: featureOptions
-					}, this.objMsgHandler);
-				}
-				*/
-
-				// Generate buildings
-				var buildings = dc.get('buildings');
-
-
-				for (var i in buildings) {
-					var building = buildings[i];
-
-					// Get 3D points for the building outline
-					var outlinePoints = [];
-					var vec, lat, lon;
-					for (var j in building.nodes) {
-						var nodeId = building.nodes[j];
-						var node = dc.getNode(nodeId);
-
-						lat = Number(node.lat);
-						lon = Number(node.lon);
-						vec = terrain.worldVector(lat, lon);
-						//vec.z += 1;
-						outlinePoints.push(vec);
-					}
-
-
-					B.Worker.sendMsg({
-						action: 'generateBuilding',
-						outlinePoints: outlinePoints,
-						tags: building.tags,
-						options: options.render.buildings
-					}, this.objMsgHandler);
-				}
-
-
-				logger.hide();
-				model._startAnimation();
-			});
+			// And start update/add process
+			logger.log('Running terrain callbacks');
+			terrain.runQueuedCallbacks();
 		});
+
+
+		// Load OSM Data
+		var xhr = new XMLHttpRequest();
+		xhr.open('GET', options.osmDataSource, true);
+		xhr.onload = function () {
+			var data = JSON.parse(xhr.responseText);
+
+			// Deal with a rare bug where an OSM way has only one node
+			for (var i in data.ways) {
+				if (data.ways[i].nodes.length < 2) {
+					delete data.ways[i];
+					console.warn('Way ' + i + ' is a bug. It only has one node. Consider deleting it from OSM.');
+				}
+			}
+
+			// Put the data in an OSMDataContainer
+			var dc = new B.OSMDataContainer(data);
+
+			// Add to the model; this runs a bunch of code that generates the
+			// features and adds callbacks for them to be added to the model
+			dc.addTo(model, options);
+		};
+		logger.log('Loading OSM Data');
+		xhr.send(null);
+
+
 
 		return this;
 		
 	},
-	objMsgHandler: function (e) {
-		console.log(e); // Placeholder
-	},
 	addTerrain: function (terrain) {
-		// Save the terrain reference locally
-		this._terrain = terrain;
-
-		// Update the origin
-		this._origin = terrain._origin;
-
 		// Update the camera position
 		var xym = terrain._latlon2meters(this.options.initialCameraPos);
 		this._camera.position = new THREE.Vector3(xym.x, xym.y, 3000);

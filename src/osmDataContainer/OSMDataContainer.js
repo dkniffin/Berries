@@ -7,6 +7,7 @@ B.OSMDataContainer = B.Class.extend({
 	_nodes: [],
 	_ways: [],
 	_relations: [],
+	_model: null,
 	options: {
 	},
 	initialize: function (data, options) {
@@ -15,49 +16,50 @@ B.OSMDataContainer = B.Class.extend({
 		this.addData(data);
 		return this;
 	},
-	addTo: function (model, logger) {
-		// Loop over things to render, and add them each to the model
-		for (var feature in B.Options.render) {
-			if (B.Options.render[feature] === false) { continue; }
+	addTo: function (model, options) {
+		this._model = model;
+		var origin = model._origin;
 
-			var way, node;
+		// For each feature that should be rendered
+		for (var feature in options.render) {
+			var featureOptions = options.render[feature];
+
+			if (featureOptions === false) { continue; }
+
 			switch (feature) {
-			case 'roads':
-				logger.log('Adding roads');
-				var roads = this.get('roads');
-				var roadSet = new B.roadset();
-				for (var roadI in roads) {
-					way = roads[roadI];
-					
-					roadSet.addObject(new B.Road(way, this, model));
-				}
-				roadSet.addTo(model);
-				break;
 			case 'buildings':
-				logger.log('Adding buildings');
+				model._logger.log('Generating buildings');
+
+				// Get the OSM data for the feature
 				var buildings = this.get('buildings');
-				var bldgSet = new B.buildingset();
+
+				model._logger.log('About to generate ' + buildings.length + ' buildings');
+
 				for (var bId in buildings) {
-					way = buildings[bId];
-					//nodes = this.getNodesForWay(way);
+					var building = buildings[bId];
 
-					bldgSet.addObject(new B.Building(way, this, model));
-				}
-				bldgSet.addTo(model);
-				break;
-			case 'fireHydrants':
-				logger.log('Adding fireHydrants');
-				var fhs = this.get('fire_hydrants');
-				for (var fhId in fhs) {
-					node = fhs[fhId];
-					//nodes = this.getNodesForWay(way);
-
-					new B.FireHydrant(node).addTo(model);
+					// Make calls to worker to generate objects
+					B.Worker.sendMsg({
+						action: 'generateBuilding',
+						feature: building,
+						origin: origin,
+						options: featureOptions
+					}, this.workerCallback.bind(this));
+					
 				}
 				break;
 			}
 		}
 		//model.addObject();
+	},
+	workerCallback: function (e) {
+		var model = this._model;
+		var terrain = this._model._terrain;
+		// Run the callback on that object
+		terrain.addObjectCallback(e.object, function (object) {
+			terrain.updateObjPosition(object);
+			model.addObject(object);
+		}, this);
 	},
 	addData: function (data) {
 
@@ -86,12 +88,10 @@ B.OSMDataContainer = B.Class.extend({
 		}
 	},
 	get: function (feature) {
-		// TODO: atm, this gets everything with the key highway. We should be 
-		// checking for highway values that correspond to roads
 		var features = [];
 		var wayid, way;
 		var nodeid, node;
-		// /var relid, rel;
+		// var relid, rel;
 
 		switch (feature) {
 		case 'roads':
