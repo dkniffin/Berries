@@ -490,6 +490,8 @@ B.Worker.w.onmessage = function (e) {
 };
 
 
+B.ToDoCounter = 0;
+
 B.Logger = B.Class.extend({
 
 	_logFeedObj: null,
@@ -1885,6 +1887,7 @@ B.Model = B.Class.extend({
 	_camera: null,
 	_origin: null,
 	_logger: null,
+	_todo: 0,
 	options: {
 		// Logging options
 		logContainer: document.body,
@@ -1962,6 +1965,7 @@ B.Model = B.Class.extend({
 
 
 		// Generate the terrain
+		B.ToDoCounter++;
 		B.Worker.sendMsg({
 			action: 'generateTerrain',
 			srtmDataSource: options.srtmDataSource,
@@ -1985,10 +1989,12 @@ B.Model = B.Class.extend({
 			// And start update/add process
 			logger.log('Running terrain callbacks');
 			terrain.runQueuedCallbacks();
-		});
+			B.ToDoCounter--;
+		}.bind(this));
 
 
 		// Load OSM Data
+		B.ToDoCounter++;
 		var xhr = new XMLHttpRequest();
 		xhr.open('GET', options.osmDataSource, true);
 		xhr.onload = function () {
@@ -2008,10 +2014,24 @@ B.Model = B.Class.extend({
 			// Add to the model; this runs a bunch of code that generates the
 			// features and adds callbacks for them to be added to the model
 			dc.addTo(model, options);
-		};
+			B.ToDoCounter--;
+		}.bind(this);
 		logger.log('Loading OSM Data');
 		xhr.send(null);
 
+
+		// When everything's ready, start the animation sequence
+		var func = function () {
+			console.log('meh');
+			if (B.ToDoCounter === 0) {
+				this._logger.log('starting animation');
+				this._logger.hide();
+				this._startAnimation();
+			} else {
+				setTimeout(func, 2000);
+			}
+		}.bind(this);
+		func();
 
 
 		return this;
@@ -2150,32 +2170,49 @@ B.Terrain = B.Class.extend({
 	},
 	buildMesh: function (geoParts) {
 		// Rebuild the geometry from it's parts
-		console.log(geoParts);
-		/*
+
+
+		
 		this._geometry = new THREE.PlaneGeometry(geoParts.width, geoParts.height,
 			geoParts.numVertsX - 1, geoParts.numVertsY - 1);
-		this._geometry.vertices = geoParts.vertices;
-		this._geometry.faces = geoParts.faces;
+
+		console.log('vertices');
+		var verts = geoParts.vertices;
+		for (var i = 0, l = verts.length; i < l; i += 3) {
+			this._geometry.vertices[i / 3] = new THREE.Vector3(verts[i],
+				verts[i + 1], verts[i + 2]);
+		}
+		console.log('faces');
+		var faces = geoParts.faces;
+		for (var j = 0, k = faces.length; j < k; j += 3) {
+			this._geometry.faces[j / 3] = new THREE.Face3(faces[j],
+				faces[j + 1], faces[j + 2]);
+		}
+
+		this._geometry.computeFaceNormals();
+		this._geometry.computeVertexNormals();
+		this._geometry.verticesNeedUpdate = true;
 
 		this._numVertsX = geoParts.numVertsX;
 		this._numVertsY = geoParts.numVertsY;
 		this._gridSpaceX = geoParts.gridSpaceX;
 		this._gridSpaceY = geoParts.gridSpaceY;
 
+
+
 		this._createMesh();
-		*/
+		
 
 		return this;
 	},
-	addObjectCallback: function (object, callback, scope) {
+	addObjectCallback: function (object, callback) {
 		if (typeof this._mesh === 'undefined') {
 			this.callbackQueue.push({
 				object: object,
-				callback: callback,
-				scope: scope
+				callback: callback
 			});
 		} else {
-			callback(object).bind(scope);
+			callback(object);
 		}
 	},
 	runQueuedCallbacks: function () {
@@ -2197,15 +2234,14 @@ B.Terrain = B.Class.extend({
 			func();
 		}.bind(this), 20);
 	},
-	updateObjPosition: function () {
-		//object.position.z = 0;
-		this.objCount++;
-		console.log(this.objCount);
+	updateObjPosition: function (object) {
+		object.position.z = this.heightAt(object.position.x, object.position.y);
+		//this.objCount++;
+		//console.log(this.objCount);
 	},
-	heightAt: function (lat, lon, xym) {
+	heightAtLatLon: function (lat, lon, xym) {
 		// Return the elevation of the terrain at the given lat/lon
-		var surfacePt = new THREE.Vector3();
-
+		
 		if (!this._bounds.contains([lat, lon])) {
 			//throw new Error('Coordinates outside of bounds');
 			console.error('Coordinates outside of bounds');
@@ -2215,13 +2251,12 @@ B.Terrain = B.Class.extend({
 		if (!xym) {
 			xym = this._latlon2meters(lat, lon);
 		}
-
-		surfacePt.x = xym.x;
-		surfacePt.y = xym.y;
-
+		this.heightAt(xym.x, xym.y);
+	},
+	heightAt: function (x, y) {
 		// Get the coords of the tile the point falls into (relative to top left)
-		var ix = Math.floor((surfacePt.x) / this._gridSpaceX);
-		var iy = (this._numVertsY - 2) - Math.floor((surfacePt.y) / this._gridSpaceY);
+		var ix = Math.floor((x) / this._gridSpaceX);
+		var iy = (this._numVertsY - 2) - Math.floor((y) / this._gridSpaceY);
 
 		// Get the positions of the 4 data points
 		var nwDP = (this._numVertsX * iy) + ix,
@@ -2245,14 +2280,12 @@ B.Terrain = B.Class.extend({
 		se.y += this._mesh.position.y;
 		sw.y += this._mesh.position.y;
 
-		var px = ((surfacePt.x) / this._gridSpaceX) - Math.floor((surfacePt.x) / this._gridSpaceX);
-		var py = ((surfacePt.y) / this._gridSpaceY) - Math.floor((surfacePt.y) / this._gridSpaceY);
+		var px = ((x) / this._gridSpaceX) - Math.floor((x) / this._gridSpaceX);
+		var py = ((y) / this._gridSpaceY) - Math.floor((y) / this._gridSpaceY);
 
 		var lerp = this._lerp;
 		// Calculate the elevation based on a linear interpolation between the surrounding points
-		surfacePt.z = lerp(lerp(nw.z, se.z, (1 + px - py) / 2), px > (1 - py) ? ne.z : se.z, Math.abs(1 - px - py));
-		
-		return surfacePt.z;
+		return lerp(lerp(nw.z, se.z, (1 + px - py) / 2), px > (1 - py) ? ne.z : se.z, Math.abs(1 - px - py));
 	},
 	_copyVertexByValue: function (vertex) {
 		return new THREE.Vector3(
@@ -2920,7 +2953,7 @@ B.OSMDataContainer = B.Class.extend({
 		terrain.addObjectCallback(e.object, function (object) {
 			terrain.updateObjPosition(object);
 			model.addObject(object);
-		}, this);
+		}.bind(this));
 	},
 	addData: function (data) {
 

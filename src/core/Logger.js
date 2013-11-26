@@ -1,3 +1,5 @@
+B.ToDoCounter = 0;
+
 B.Logger = B.Class.extend({
 
 	_logFeedObj: null,

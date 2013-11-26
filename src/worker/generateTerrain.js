@@ -1,5 +1,4 @@
-B.Worker.addMsgHandler('generateTerrain', function () {
-	B.Logger.log('debug', 'Got to generate terrain');
+B.Worker.addMsgHandler('generateTerrain', function (e) {
 	/* Input:
 	  - data
 	  - options
@@ -7,10 +6,7 @@ B.Worker.addMsgHandler('generateTerrain', function () {
 	    - numVertsX
 	    - numVertsY
 	*/
-	//var options = e.data.options;
-	
-	/*
-	terrain = {};
+	var options = e.data.options;
 
 	var xhr = new XMLHttpRequest();
 	xhr.responseType = 'arraybuffer';
@@ -34,30 +30,45 @@ B.Worker.addMsgHandler('generateTerrain', function () {
 
 			// Create the geometry
 			B.Logger.log('log', 'Creating the terrain geometry');
-			var geometry = terrain.geometry = new THREE.PlaneGeometry(width, height, numVertsX - 1, numVertsY - 1);
+			var geometry = new THREE.PlaneGeometry(width, height, numVertsX - 1, numVertsY - 1);
 			var gridSpaceX = width / (numVertsX - 1);
 			var gridSpaceY = height / (numVertsY - 1);
 
 			// Set the heights of each vertex
 			B.Logger.log('debug', 'Populating vertices');
+			var verts = new Float32Array(geometry.vertices.length * 3);
 			for (var i = 0, l = geometry.vertices.length; i < l; i++) {
-				geometry.vertices[i].z = data[i] / 65535 * 4347;
+				var vertex = geometry.vertices[i];
+				vertex.z = data[i] / 65535 * 4347;
+
+				verts[i * 3] = vertex.x;
+				verts[i * 3 + 1] = vertex.y;
+				verts[i * 3 + 2] = vertex.z;
 			}
-			B.Logger.log('debug', 'Done populating vertices');
 			//THREE.GeometryUtils.triangulateQuads(geometry);
 			geometry.computeFaceNormals();
 			geometry.computeVertexNormals();
+
+			B.Logger.log('debug', 'Reformatting faces');
+			var faces = new Float32Array(geometry.faces.length * 3);
+			for (var j = 0, k = geometry.faces.length; j < k; j++) {
+				var face = geometry.faces[j];
+
+				faces[j * 3] = face.a;
+				faces[j * 3 + 1] = face.b;
+				faces[j * 3 + 2] = face.c;
+			}
 				
 			B.Logger.log('debug', 'Returning geometry...');
-			B.Logger.log('debug', 'Sorry, this is gonna take a while...it needs to be refactored...');
+			//B.Logger.log('debug', 'Sorry, this is gonna take a while...it needs to be refactored...');
 			// TODO: This part takes a long time to run. At some point, it
 			// should be probably rewritten so that the terrain is a
 			// bufferGeometry
 			B.Worker.sendMsg({
 				action: 'generateTerrain',
 				geometryParts: {
-					vertices: geometry.vertices,
-					faces: geometry.faces,
+					vertices: verts,
+					faces: faces,
 					width: width,
 					height: height,
 					numVertsX: numVertsX,
@@ -66,14 +77,12 @@ B.Worker.addMsgHandler('generateTerrain', function () {
 					gridSpaceY: gridSpaceY
 				}
 				// Other return values
-			});
+			}, null, [
+				verts.buffer,
+				faces.buffer
+			]);
 
 		}
 	};
 	xhr.send(null);
-	*/
-
-	B.Worker.sendMsg({
-		action: 'generateTerrain'
-	});
 });

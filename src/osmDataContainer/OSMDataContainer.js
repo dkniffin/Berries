@@ -59,7 +59,7 @@ B.OSMDataContainer = B.Class.extend({
 		terrain.addObjectCallback(e.object, function (object) {
 			terrain.updateObjPosition(object);
 			model.addObject(object);
-		}, this);
+		}.bind(this));
 	},
 	addData: function (data) {
 

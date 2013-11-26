@@ -1,7 +1,9 @@
 
 
 B.Worker.addMsgHandler('generateBuilding', function () {
-	//B.Logger.log('debug', 'Got to generateBuilding');
+	//var building = e.data.feature;
+	//var origin = e.data.origin;
+	//var options = e.data.options;
 	/*
 	B.Logger.log('info', 'Generating Building');
 	var options = e.data.options;
@@ -83,10 +85,6 @@ B.Worker.addMsgHandler('generateBuilding', function () {
 
 	B.Logger.log('debug', buildingGeometry);
 	*/
-	var i = 0;
-	while (i < 1) {
-		i++;
-	}
 	B.Worker.sendMsg({
 		action: 'generateBuilding'
 	});

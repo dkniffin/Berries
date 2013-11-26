@@ -8,6 +8,7 @@ B.Model = B.Class.extend({
 	_camera: null,
 	_origin: null,
 	_logger: null,
+	_todo: 0,
 	options: {
 		// Logging options
 		logContainer: document.body,
@@ -85,6 +86,7 @@ B.Model = B.Class.extend({
 
 
 		// Generate the terrain
+		B.ToDoCounter++;
 		B.Worker.sendMsg({
 			action: 'generateTerrain',
 			srtmDataSource: options.srtmDataSource,
@@ -108,10 +110,12 @@ B.Model = B.Class.extend({
 			// And start update/add process
 			logger.log('Running terrain callbacks');
 			terrain.runQueuedCallbacks();
-		});
+			B.ToDoCounter--;
+		}.bind(this));
 
 
 		// Load OSM Data
+		B.ToDoCounter++;
 		var xhr = new XMLHttpRequest();
 		xhr.open('GET', options.osmDataSource, true);
 		xhr.onload = function () {
@@ -131,10 +135,24 @@ B.Model = B.Class.extend({
 			// Add to the model; this runs a bunch of code that generates the
 			// features and adds callbacks for them to be added to the model
 			dc.addTo(model, options);
-		};
+			B.ToDoCounter--;
+		}.bind(this);
 		logger.log('Loading OSM Data');
 		xhr.send(null);
 
+
+		// When everything's ready, start the animation sequence
+		var func = function () {
+			console.log('meh');
+			if (B.ToDoCounter === 0) {
+				this._logger.log('starting animation');
+				this._logger.hide();
+				this._startAnimation();
+			} else {
+				setTimeout(func, 2000);
+			}
+		}.bind(this);
+		func();
 
 
 		return this;
