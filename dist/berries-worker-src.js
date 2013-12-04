@@ -35,10 +35,11 @@ B.Worker.addMsgHandler('loadLibrary', function (e) {
 	B.Logger.log('debug', 'Loading ' + e.data.url);
 	importScripts(e.data.url);
 });
-
+/*
 B.Worker.addMsgHandler('loadDefaultMats', function () {
 	B.Materials.initDefaults();
 });
+*/
 
 B.Logger = {
 	log: function (type, message) {
@@ -47,6 +48,52 @@ B.Logger = {
 			type: type,
 			message: message
 		});
+	}
+};
+
+B.WebWorkerGeometryHelper = {
+	deconstruct: function (geometry) {
+		// Set the heights of each vertex
+		var verts = new Float32Array(geometry.vertices.length * 3);
+		for (var i = 0, l = geometry.vertices.length; i < l; i++) {
+			var vertex = geometry.vertices[i];
+
+			verts[i * 3] = vertex.x;
+			verts[i * 3 + 1] = vertex.y;
+			verts[i * 3 + 2] = vertex.z;
+		}
+		var faces = new Float32Array(geometry.faces.length * 3);
+		var mats = new Float32Array(geometry.faces.length);
+		for (var j = 0, k = geometry.faces.length; j < k; j++) {
+			var face = geometry.faces[j];
+
+			faces[j * 3] = face.a;
+			faces[j * 3 + 1] = face.b;
+			faces[j * 3 + 2] = face.c;
+
+			mats[j] = face.materialIndex;
+		}
+		
+		return {faces: faces, verts: verts, mats: mats};
+	},
+	reconstruct: function (geoParts, geometry) {
+		var verts = geoParts.vertices;
+		for (var i = 0, l = verts.length; i < l; i += 3) {
+			geometry.vertices[i / 3] = new THREE.Vector3(verts[i],
+				verts[i + 1], verts[i + 2]);
+		}
+
+		var faces = geoParts.faces;
+		var mats = geoParts.materials;
+		for (var j = 0, k = faces.length; j < k; j += 3) {
+			geometry.faces[j / 3] = new THREE.Face3(faces[j],
+				faces[j + 1], faces[j + 2]);
+			if (typeof mats !== 'undefined') {
+				geometry.faces[j / 3].materialIndex = mats[j / 3];
+			}
+		}
+		geometry.computeFaceNormals();
+
 	}
 };
 
@@ -665,45 +712,6 @@ B.latLngBounds = function (a, b) { // (LatLngBounds) or (LatLng, LatLng)
 };
 
 
-B.Materials = {
-	MATERIALS: [],
-	addMaterial: function (name, material) {
-		if (! name.match(/^[A-Z0-9]+$/)) {
-			throw new Error('Material name does not match regex. Must be all uppercase alpha-numerical characters');
-		}
-		if (typeof this[name] !== 'undefined') {
-			throw new Error('Material with name already exists. Use update instead.');
-		}
-
-		// Add the material to the materials array
-		this.MATERIALS.push(material);
-
-		// Add the index as a attrib for B.Materials
-		this[name] = this.MATERIALS.length - 1;
-	},
-	updateMaterial: function (name, newMaterial) {
-		if (typeof this[name] === 'undefined') {
-			throw new Error('Material does not exist yet. Cannot update.');
-		} else {
-			var matindex = this[name];
-			this.MATERIALS[matindex] = newMaterial;
-		}
-	},
-	getMaterial: function (name) {
-		return B.Materials.MATERIALS[this[name]];
-	}
-
-};
-
-// Colored Materials
-B.Materials.initDefaults = function () {
-	B.Materials.addMaterial('BRICKRED', new THREE.MeshPhongMaterial({color: 0x841F27, side: THREE.DoubleSide }));
-	B.Materials.addMaterial('CONCRETEWHITE', new THREE.MeshPhongMaterial({color: 0xF2F2F2, side: THREE.DoubleSide }));
-	B.Materials.addMaterial('GLASSBLUE', new THREE.MeshPhongMaterial({color: 0x009DDD, side: THREE.DoubleSide }));
-	B.Materials.addMaterial('ASPHALTGREY', new THREE.MeshPhongMaterial({color: 0x757575, side: THREE.DoubleSide }));
-	B.Materials.addMaterial('WOODBROWN', new THREE.MeshPhongMaterial({color: 0xAE8F60, side: THREE.DoubleSide }));
-};
-
 B.Worker.addMsgHandler('generateTerrain', function (e) {
 	/* Input:
 	  - data
@@ -740,30 +748,17 @@ B.Worker.addMsgHandler('generateTerrain', function (e) {
 			var gridSpaceX = width / (numVertsX - 1);
 			var gridSpaceY = height / (numVertsY - 1);
 
-			// Set the heights of each vertex
-			B.Logger.log('debug', 'Populating vertices');
-			var verts = new Float32Array(geometry.vertices.length * 3);
 			for (var i = 0, l = geometry.vertices.length; i < l; i++) {
-				var vertex = geometry.vertices[i];
-				vertex.z = data[i] / 65535 * 4347;
-
-				verts[i * 3] = vertex.x;
-				verts[i * 3 + 1] = vertex.y;
-				verts[i * 3 + 2] = vertex.z;
+				geometry.vertices[i].z = data[i] / 65535 * 4347;
 			}
+
+
+			var deconstructedGeo = B.WebWorkerGeometryHelper.deconstruct(geometry);
+
+
 			//THREE.GeometryUtils.triangulateQuads(geometry);
 			geometry.computeFaceNormals();
 			geometry.computeVertexNormals();
-
-			B.Logger.log('debug', 'Reformatting faces');
-			var faces = new Float32Array(geometry.faces.length * 3);
-			for (var j = 0, k = geometry.faces.length; j < k; j++) {
-				var face = geometry.faces[j];
-
-				faces[j * 3] = face.a;
-				faces[j * 3 + 1] = face.b;
-				faces[j * 3 + 2] = face.c;
-			}
 				
 			B.Logger.log('debug', 'Returning geometry...');
 			//B.Logger.log('debug', 'Sorry, this is gonna take a while...it needs to be refactored...');
@@ -773,8 +768,8 @@ B.Worker.addMsgHandler('generateTerrain', function (e) {
 			B.Worker.sendMsg({
 				action: 'generateTerrain',
 				geometryParts: {
-					vertices: verts,
-					faces: faces,
+					vertices: deconstructedGeo.verts,
+					faces: deconstructedGeo.faces,
 					width: width,
 					height: height,
 					numVertsX: numVertsX,
@@ -784,8 +779,8 @@ B.Worker.addMsgHandler('generateTerrain', function (e) {
 				}
 				// Other return values
 			}, null, [
-				verts.buffer,
-				faces.buffer
+				deconstructedGeo.verts.buffer,
+				deconstructedGeo.faces.buffer
 			]);
 
 		}
@@ -794,34 +789,88 @@ B.Worker.addMsgHandler('generateTerrain', function (e) {
 });
 
 
+function getHeight(tags, options) {
+	/* Return the height of the building
 
+	   In descending order of preference:
+	   - height=* tag
+	   - levels * levelheight calculation
+	    - levels based on:
+	     - levels=* tag
+	     - building=* tags (building type)
+	     - options.levels
+	    - levelheight based on:
+	     - options.levelHeight
+	*/
+	var height = options.levels * options.levelHeight; // Default to input options
+	if (tags) {
+		if (tags.height) {
+			// If the height tag is defined, use it
+			// TODO: Check for various values (not meters)
+			height = tags.height;
+		} else {
+			// Otherwise use levels for calculation
+			var levels = options.levels;
+			if (tags['building:levels']) {
+				levels = tags['building:levels'];
+			} else if (tags.building) {
+				switch (tags.building) {
+				case 'house':
+				case 'garage':
+				case 'roof': // TODO: Handle this separately
+				case 'hut':
+					levels = 1;
+					break;
+				case 'school':
+					levels = 2;
+					break;
+				case 'apartments':
+				case 'office':
+					levels = 3;
+					break;
+				case 'hospital':
+					levels = 4;
+					break;
+				case 'hotel':
+					levels = 10;
+					break;
+				}
+			}
 
-B.Worker.addMsgHandler('generateBuilding', function () {
-	//var building = e.data.feature;
-	//var origin = e.data.origin;
-	//var options = e.data.options;
-	/*
-	B.Logger.log('info', 'Generating Building');
-	var options = e.data.options;
-	B.Logger.log('info', options);
+			var levelHeight = options.levelHeight;
+
+			height = levels * levelHeight;
+		}
+	}
+	return height;
+}
+
+B.Worker.addMsgHandler('generateBuilding', function (e) {
+	//B.Logger.log('debug', 'Generating Building');
+
+	// Inputs
+	var oIn = e.data.origin;
+	var origin = B.latLng(oIn.lat, oIn.lng);
+	var nodes = e.data.nodes;
 	var tags = e.data.tags;
-	var outlinePoints = e.data.outlinePoints;
+	var options = e.data.options;
 
 	var buildingGeometry =  new THREE.Geometry();
 	var i, j;
 
-	// Some logic to determine the height of the building
-	var height = getHeight(tags, options.heightOptions);
-	
 
-	// Use the lowest point of the building
-	var groundLevel = outlinePoints[0].z;
-	for (i in outlinePoints) {
-		if (outlinePoints[i].z < groundLevel) {
-			groundLevel = outlinePoints[i].z;
-		}
+	var translation = {
+		x: origin.distanceTo([origin.lat, nodes[0].lon]),
+		y: origin.distanceTo([nodes[0].lat, origin.lng])
+	};
+	// Convert the node points (lat/lon) to an array of Vector2
+	var outlinePoints = [];
+	for (i in nodes) {
+		outlinePoints[i] = new THREE.Vector2(
+			origin.distanceTo([origin.lat, nodes[i].lon]) - translation.x,
+			origin.distanceTo([nodes[i].lat, origin.lng]) - translation.y
+		);
 	}
-	var roofLevel = groundLevel + height;
 
 	// Determine if the nodes are defined in a clockwise direction or CCW
 	var clockwise = THREE.Shape.Utils.isClockWise(outlinePoints);
@@ -831,7 +880,19 @@ B.Worker.addMsgHandler('generateBuilding', function () {
 		outlinePoints.reverse();
 	}
 
-	var wallMaterialIndex = getWallMaterialIndex(tags, options.defaultBuildingMaterial);
+	//B.Logger.log('debug', 'outlinePoints: ' + outlinePoints.length);
+
+
+	// Some logic to determine the height of the building
+	var height = getHeight(tags, options.heightOptions);
+
+	// Use 0; the position in the model will be used later to place the object
+	// on the ground
+	var groundLevel = 0;
+	
+	var roofLevel = groundLevel + height;
+
+
 
 	var roofPointsCoplanar = [];
 	for (j in outlinePoints) {
@@ -847,8 +908,8 @@ B.Worker.addMsgHandler('generateBuilding', function () {
 		wallGeometry.vertices.push(new THREE.Vector3(point2.x, point2.y, roofLevel));
 		wallGeometry.vertices.push(new THREE.Vector3(point.x, point.y, roofLevel));
 
-		wallGeometry.faces.push(new THREE.Face3(2, 1, 0, null, null, wallMaterialIndex));
-		wallGeometry.faces.push(new THREE.Face3(3, 2, 0, null, null, wallMaterialIndex));
+		wallGeometry.faces.push(new THREE.Face3(2, 1, 0, null, null, 0));
+		wallGeometry.faces.push(new THREE.Face3(3, 2, 0, null, null, 0));
 
 		// Append it to the rest of the building geometry
 		THREE.GeometryUtils.merge(buildingGeometry, wallGeometry);
@@ -871,7 +932,7 @@ B.Worker.addMsgHandler('generateBuilding', function () {
 	}
 	for (i in faces) {
 		roofGeometry.faces.push(new THREE.Face3(faces[i][0], faces[i][1], faces[i][2],
-			null, null, B.Materials.ASPHALTGREY));
+			null, null, 1));
 	}
 
 	roofGeometry.computeFaceNormals();
@@ -879,10 +940,25 @@ B.Worker.addMsgHandler('generateBuilding', function () {
 	
 	buildingGeometry.computeFaceNormals();
 
-	B.Logger.log('debug', buildingGeometry);
-	*/
+	
+	var deconstructedGeo = B.WebWorkerGeometryHelper.deconstruct(buildingGeometry);
+
+
 	B.Worker.sendMsg({
-		action: 'generateBuilding'
-	});
+		action: 'generateBuilding',
+		tags: tags,
+		geometryParts: {
+			vertices: deconstructedGeo.verts,
+			faces: deconstructedGeo.faces,
+			materials: deconstructedGeo.mats,
+			position: translation
+		}
+	}, null, [
+		deconstructedGeo.verts.buffer,
+		deconstructedGeo.faces.buffer,
+		deconstructedGeo.mats.buffer
+	]);
 });
+
+
 

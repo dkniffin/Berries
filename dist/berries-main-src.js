@@ -490,6 +490,52 @@ B.Worker.w.onmessage = function (e) {
 };
 
 
+B.WebWorkerGeometryHelper = {
+	deconstruct: function (geometry) {
+		// Set the heights of each vertex
+		var verts = new Float32Array(geometry.vertices.length * 3);
+		for (var i = 0, l = geometry.vertices.length; i < l; i++) {
+			var vertex = geometry.vertices[i];
+
+			verts[i * 3] = vertex.x;
+			verts[i * 3 + 1] = vertex.y;
+			verts[i * 3 + 2] = vertex.z;
+		}
+		var faces = new Float32Array(geometry.faces.length * 3);
+		var mats = new Float32Array(geometry.faces.length);
+		for (var j = 0, k = geometry.faces.length; j < k; j++) {
+			var face = geometry.faces[j];
+
+			faces[j * 3] = face.a;
+			faces[j * 3 + 1] = face.b;
+			faces[j * 3 + 2] = face.c;
+
+			mats[j] = face.materialIndex;
+		}
+		
+		return {faces: faces, verts: verts, mats: mats};
+	},
+	reconstruct: function (geoParts, geometry) {
+		var verts = geoParts.vertices;
+		for (var i = 0, l = verts.length; i < l; i += 3) {
+			geometry.vertices[i / 3] = new THREE.Vector3(verts[i],
+				verts[i + 1], verts[i + 2]);
+		}
+
+		var faces = geoParts.faces;
+		var mats = geoParts.materials;
+		for (var j = 0, k = faces.length; j < k; j += 3) {
+			geometry.faces[j / 3] = new THREE.Face3(faces[j],
+				faces[j + 1], faces[j + 2]);
+			if (typeof mats !== 'undefined') {
+				geometry.faces[j / 3].materialIndex = mats[j / 3];
+			}
+		}
+		geometry.computeFaceNormals();
+
+	}
+};
+
 B.ToDoCounter = 0;
 
 B.Logger = B.Class.extend({
@@ -638,13 +684,12 @@ B.Materials = {
 };
 
 // Colored Materials
-B.Materials.initDefaults = function () {
-	B.Materials.addMaterial('BRICKRED', new THREE.MeshPhongMaterial({color: 0x841F27, side: THREE.DoubleSide }));
-	B.Materials.addMaterial('CONCRETEWHITE', new THREE.MeshPhongMaterial({color: 0xF2F2F2, side: THREE.DoubleSide }));
-	B.Materials.addMaterial('GLASSBLUE', new THREE.MeshPhongMaterial({color: 0x009DDD, side: THREE.DoubleSide }));
-	B.Materials.addMaterial('ASPHALTGREY', new THREE.MeshPhongMaterial({color: 0x757575, side: THREE.DoubleSide }));
-	B.Materials.addMaterial('WOODBROWN', new THREE.MeshPhongMaterial({color: 0xAE8F60, side: THREE.DoubleSide }));
-};
+B.Materials.addMaterial('BRICKRED', new THREE.MeshPhongMaterial({color: 0x841F27, side: THREE.DoubleSide }));
+B.Materials.addMaterial('CONCRETEWHITE', new THREE.MeshPhongMaterial({color: 0xF2F2F2, side: THREE.DoubleSide }));
+B.Materials.addMaterial('GLASSBLUE', new THREE.MeshPhongMaterial({color: 0x009DDD, side: THREE.DoubleSide }));
+B.Materials.addMaterial('ASPHALTGREY', new THREE.MeshPhongMaterial({color: 0x757575, side: THREE.DoubleSide }));
+B.Materials.addMaterial('WOODBROWN', new THREE.MeshPhongMaterial({color: 0xAE8F60, side: THREE.DoubleSide }));
+
 
 /*
  * B.Point represents a point with x and y coordinates.
@@ -1939,9 +1984,9 @@ B.Model = B.Class.extend({
 
 		// For debugging
 		//logger.log('Adding XYZ axes');
-		//this._addAxis('x', 1000000, 0xff0000);
-		//this._addAxis('y', 1000000, 0x00ff00);
-		//this._addAxis('z', 1000000, 0x0000ff);
+		this._addAxis('x', 1000000, 0xff0000);
+		this._addAxis('y', 1000000, 0x00ff00);
+		this._addAxis('z', 1000000, 0x0000ff);
 
 		// Add sunlight to the scene
 		logger.log('Adding sunlight');
@@ -1956,9 +2001,11 @@ B.Model = B.Class.extend({
 			action: 'loadLibrary',
 			url: options.threeJS
 		});
+		/*
 		B.Worker.sendMsg({
 			action: 'loadDefaultMats'
 		});
+*/
 
 		var model = this;
 		var terrain = this._terrain = new B.Terrain(options.bounds);
@@ -1986,10 +2033,11 @@ B.Model = B.Class.extend({
 			logger.log('Adding terrain to the model');
 			model.addTerrain(terrain);
 
+			B.ToDoCounter--;
 			// And start update/add process
 			logger.log('Running terrain callbacks');
 			terrain.runQueuedCallbacks();
-			B.ToDoCounter--;
+			
 		}.bind(this));
 
 
@@ -2040,7 +2088,7 @@ B.Model = B.Class.extend({
 	addTerrain: function (terrain) {
 		// Update the camera position
 		var xym = terrain._latlon2meters(this.options.initialCameraPos);
-		this._camera.position = new THREE.Vector3(xym.x, xym.y, 3000);
+		this._camera.position = new THREE.Vector3(xym.x, xym.y, 5000);
 
 		xym = terrain._latlon2meters(this.options.initialCameraLook);
 		this._camera.lookAt(new THREE.Vector3(xym.x, xym.y, 1640));
@@ -2066,8 +2114,8 @@ B.Model = B.Class.extend({
 			p2.set(length, 0, 0);
 			break;
 		case 'y':
-			p1.set(0, -length, 0);
-			p2.set(0, length, 0);
+			p1.set(100000, -length, 2800);
+			p2.set(100000, length, 2800);
 			break;
 		case 'z':
 			p1.set(0, 0, -length);
@@ -2176,18 +2224,8 @@ B.Terrain = B.Class.extend({
 		this._geometry = new THREE.PlaneGeometry(geoParts.width, geoParts.height,
 			geoParts.numVertsX - 1, geoParts.numVertsY - 1);
 
-		console.log('vertices');
-		var verts = geoParts.vertices;
-		for (var i = 0, l = verts.length; i < l; i += 3) {
-			this._geometry.vertices[i / 3] = new THREE.Vector3(verts[i],
-				verts[i + 1], verts[i + 2]);
-		}
-		console.log('faces');
-		var faces = geoParts.faces;
-		for (var j = 0, k = faces.length; j < k; j += 3) {
-			this._geometry.faces[j / 3] = new THREE.Face3(faces[j],
-				faces[j + 1], faces[j + 2]);
-		}
+		B.WebWorkerGeometryHelper.reconstruct(geoParts, this._geometry);
+
 
 		this._geometry.computeFaceNormals();
 		this._geometry.computeVertexNormals();
@@ -2241,7 +2279,7 @@ B.Terrain = B.Class.extend({
 	},
 	heightAtLatLon: function (lat, lon, xym) {
 		// Return the elevation of the terrain at the given lat/lon
-		
+
 		if (!this._bounds.contains([lat, lon])) {
 			//throw new Error('Coordinates outside of bounds');
 			console.error('Coordinates outside of bounds');
@@ -2571,189 +2609,37 @@ B.road = function (id, options) {
  */
 
 B.Building = B.Class.extend({
-
-	_way: {},
-	_osmDC: null,
-	_geometry: null,
+	_mesh: null,
+	_tags: null,
 	options: {
 		levels: 2,
 		levelHeight: 3.048, // meters
 		wallMaterial: B.Materials.CONCRETEWHITE
 	},
-	initialize: function (way, osmDC, model, options) {
-		options = B.setOptions(this, options);
+	initialize: function (geoParts, tags) {
+		this._tags = tags;
+		this._geometry = new THREE.Geometry();
+		B.WebWorkerGeometryHelper.reconstruct(geoParts, this._geometry);
 
-		this._way = way;
-		this._osmDC = osmDC;
-
-		// Get the points that make up the outline of the building (in 3D)
-		var outlinePoints = this._getOutlinePoints(this._way.nodes, this._osmDC, model);
-
-		// TODO: Use min_height
-
-		this._geometry = this._generateGeometry(outlinePoints, this._way);
 		
+		var wallMatIndx = this._getWallMaterialIndex(tags);
+		var roofMatIndx = B.Materials.CONCRETEWHITE;
+		var mesh = this._mesh = new THREE.Mesh(this._geometry,
+			/*new THREE.MeshBasicMaterial({
+				color: 'red'
+				//wireframe: true
+			})*/
+			new THREE.MeshFaceMaterial([
+				B.Materials.MATERIALS[wallMatIndx],
+				B.Materials.MATERIALS[roofMatIndx]
+			])
+		);
+
+		mesh.position = new THREE.Vector3(geoParts.position.x, geoParts.position.y, 0);
+		mesh.castShadow = true;
+		mesh.receiveShadow = true;
+
 		return this;
-
-	},
-	_generateGeometry: function (outlinePoints, way) {
-		/* Generate the building geometry
-
-			Algorithm:
-			1. create the wall faces
-			2. create the roof face
-
-            TODO: Look into whether extrudeGeometry is more efficient. The
-			reason I decided against it here is that I had trouble getting 
-			it to work correctly.
-			*/
-
-		var buildingGeometry = this._geometry =  new THREE.Geometry();
-		var i, j;
-
-		// Some logic to determine the height of the building
-		var height = this._getHeight(way.tags);
-		
-
-		// Use the lowest point of the building
-		var groundLevel = outlinePoints[0].z;
-		for (i in outlinePoints) {
-			if (outlinePoints[i].z < groundLevel) {
-				groundLevel = outlinePoints[i].z;
-			}
-		}
-		var roofLevel = groundLevel + height;
-
-		// Determine if the nodes are defined in a clockwise direction or CCW
-		var clockwise = THREE.Shape.Utils.isClockWise(outlinePoints);
-
-		if (!clockwise) {
-			// Reverse CCW point sets
-			outlinePoints.reverse();
-		}
-
-		var wallMaterialIndex = this._getWallMaterialIndex(way.tags);
-
-		var roofPointsCoplanar = [];
-		for (j in outlinePoints) {
-			j = Number(j);
-			var point = outlinePoints[j];
-			var point2i = (j !== (outlinePoints.length - 1)) ? j + 1 : 0;
-			var point2 = outlinePoints[point2i];
-
-			// Create the geometry for one wall
-			var wallGeometry = new THREE.Geometry();
-			wallGeometry.vertices.push(new THREE.Vector3(point.x, point.y, groundLevel));
-			wallGeometry.vertices.push(new THREE.Vector3(point2.x, point2.y, groundLevel));
-			wallGeometry.vertices.push(new THREE.Vector3(point2.x, point2.y, roofLevel));
-			wallGeometry.vertices.push(new THREE.Vector3(point.x, point.y, roofLevel));
-
-			wallGeometry.faces.push(new THREE.Face3(2, 1, 0, null, null, wallMaterialIndex));
-			wallGeometry.faces.push(new THREE.Face3(3, 2, 0, null, null, wallMaterialIndex));
-
-			// Append it to the rest of the building geometry
-			THREE.GeometryUtils.merge(buildingGeometry, wallGeometry);
-
-			// create a 2D point for creating the roof
-			roofPointsCoplanar.push(new THREE.Vector2(point.x, point.y));
-		}
-
-
-		// Create the geometry for the roof
-		var roofGeometry = new THREE.Geometry();
-		var roofShape = new THREE.Shape(roofPointsCoplanar);
-
-		var shapePoints = roofShape.extractPoints();
-		var faces = THREE.Shape.Utils.triangulateShape(shapePoints.shape, shapePoints.holes);
-
-		for (i in shapePoints.shape) {
-			var vertex = shapePoints.shape[i];
-			roofGeometry.vertices.push(new THREE.Vector3(vertex.x, vertex.y, roofLevel));
-		}
-		for (i in faces) {
-			roofGeometry.faces.push(new THREE.Face3(faces[i][0], faces[i][1], faces[i][2],
-				null, null, B.Materials.ASPHALTGREY));
-		}
-
-		roofGeometry.computeFaceNormals();
-		THREE.GeometryUtils.merge(buildingGeometry, roofGeometry);
-		
-		buildingGeometry.computeFaceNormals();
-
-		return buildingGeometry;
-
-	},
-	_getOutlinePoints: function (nodes, osmDC, model) {
-		// Get 3D points for the building outline
-		var outlinePoints = [];
-		var vec, lat, lon;
-		var i;
-		for (i in nodes) {
-			var nodeId = nodes[i];
-			var node = osmDC.getNode(nodeId);
-
-			lat = Number(node.lat);
-			lon = Number(node.lon);
-			vec = model.getTerrain().worldVector(lat, lon);
-			//vec.z += 1;
-			outlinePoints.push(vec);
-		}
-		return outlinePoints;
-	},
-	_getHeight: function (tags) {
-		/* Return the height of the building
-
-		   In descending order of preference:
-		   - height=* tag
-		   - levels * levelheight calculation
-		    - levels based on:
-		     - levels=* tag
-		     - building=* tags (building type)
-		     - options.levels
-		    - levelheight based on:
-		     - options.levelHeight
-		*/
-		var height = this.options.levels * this.options.levelHeight; // Default to input options
-		if (tags) {
-			if (tags.height) {
-				// If the height tag is defined, use it
-				// TODO: Check for various values (not meters)
-				height = tags.height;
-			} else {
-				// Otherwise use levels for calculation
-				var levels = this.options.levels;
-				if (tags['building:levels']) {
-					levels = tags['building:levels'];
-				} else if (tags.building) {
-					switch (tags.building) {
-					case 'house':
-					case 'garage':
-					case 'roof': // TODO: Handle this separately
-					case 'hut':
-						levels = 1;
-						break;
-					case 'school':
-						levels = 2;
-						break;
-					case 'apartments':
-					case 'office':
-						levels = 3;
-						break;
-					case 'hospital':
-						levels = 4;
-						break;
-					case 'hotel':
-						levels = 10;
-						break;
-					}
-				}
-
-				var levelHeight = this.options.levelHeight;
-
-				height = levels * levelHeight;
-			}
-		}
-		return height;
 	},
 	_getWallMaterialIndex: function (tags) {
 		/* 
@@ -2785,8 +2671,21 @@ B.Building = B.Class.extend({
 	}
 });
 
-B.building = function (id, options) {
-	return new B.Building(id, options);
+B.BuildingHelper = {
+	workerCallback: function (e) {
+		var model = this._model;
+		var terrain = this._model._terrain;
+
+		var building = new B.Building(e.data.geometryParts, e.data.tags);
+
+		// Run a terrain callback on that object
+		terrain.addObjectCallback(building, function (object) {
+			// Update the building's position
+			terrain.updateObjPosition(object._mesh);
+			// Add the object to the model
+			model.addObject(object._mesh);
+		}.bind(this));
+	}
 };
 
 
@@ -2929,16 +2828,28 @@ B.OSMDataContainer = B.Class.extend({
 
 				model._logger.log('About to generate ' + buildings.length + ' buildings');
 
+				var meh = false;
 				for (var bId in buildings) {
 					var building = buildings[bId];
+					var nodes = [];
 
+					for (var i in building.nodes) {
+						var nodeId = building.nodes[i];
+						nodes[i] = this.getNode(nodeId);
+					}
+
+					if (!meh) {
+						console.log('before input:' + nodes.length);
+						meh = true;
+					}
 					// Make calls to worker to generate objects
 					B.Worker.sendMsg({
 						action: 'generateBuilding',
-						feature: building,
+						nodes: nodes,
+						tags: building.tags,
 						origin: origin,
 						options: featureOptions
-					}, this.workerCallback.bind(this));
+					}, B.BuildingHelper.workerCallback.bind(this));
 					
 				}
 				break;
@@ -2963,7 +2874,6 @@ B.OSMDataContainer = B.Class.extend({
 			this._nodes = data.nodes;
 			this._ways = data.ways;
 			this._relations = data.relations;
-
 
 			// Deal with a rare bug where an OSM way has only one node
 			for (var i in this._ways) {

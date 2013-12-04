@@ -35,16 +35,28 @@ B.OSMDataContainer = B.Class.extend({
 
 				model._logger.log('About to generate ' + buildings.length + ' buildings');
 
+				var meh = false;
 				for (var bId in buildings) {
 					var building = buildings[bId];
+					var nodes = [];
 
+					for (var i in building.nodes) {
+						var nodeId = building.nodes[i];
+						nodes[i] = this.getNode(nodeId);
+					}
+
+					if (!meh) {
+						console.log('before input:' + nodes.length);
+						meh = true;
+					}
 					// Make calls to worker to generate objects
 					B.Worker.sendMsg({
 						action: 'generateBuilding',
-						feature: building,
+						nodes: nodes,
+						tags: building.tags,
 						origin: origin,
 						options: featureOptions
-					}, this.workerCallback.bind(this));
+					}, B.BuildingHelper.workerCallback.bind(this));
 					
 				}
 				break;
@@ -69,7 +81,6 @@ B.OSMDataContainer = B.Class.extend({
 			this._nodes = data.nodes;
 			this._ways = data.ways;
 			this._relations = data.relations;
-
 
 			// Deal with a rare bug where an OSM way has only one node
 			for (var i in this._ways) {

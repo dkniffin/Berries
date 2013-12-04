@@ -3,6 +3,7 @@ var deps = {
 		src: ['worker/WorkerB.js',
 		      'worker/Worker.js',
 		      'worker/WorkerHelper.js',
+		      'worker/WebWorkerGeometryHelper.js',
 		      'worker/loadOSMData.js',
 		      'core/Class.js',
 		      'core/Util.js',
@@ -10,11 +11,12 @@ var deps = {
 		      'geo/LatLngBounds.js'],
 		desc: 'Core components of web worker'
 	},
+	/*
 	Materials: {
 		src: ['materials/Material.js',
 			  'materials/DefaultMaterials.js'],
 		desc: 'Sets up materials to use in the model'
-	},
+	},*/
 	Generators: {
 		src: ['worker/generateTerrain.js',
 			  'worker/generateBuilding.js'],

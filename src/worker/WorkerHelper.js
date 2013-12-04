@@ -4,10 +4,11 @@ B.Worker.addMsgHandler('loadLibrary', function (e) {
 	B.Logger.log('debug', 'Loading ' + e.data.url);
 	importScripts(e.data.url);
 });
-
+/*
 B.Worker.addMsgHandler('loadDefaultMats', function () {
 	B.Materials.initDefaults();
 });
+*/
 
 B.Logger = {
 	log: function (type, message) {

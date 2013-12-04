@@ -1,0 +1,127 @@
+// Berries API example with webworkers
+
+// Inside index.html
+
+
+/* Include berries-main.js
+
+
+var model = B.model({
+	// Model
+	modelContainer: 'mapContainer', 
+
+	// Logging
+	logContainer: 'logContainer',
+	onLogMessage: function (e) {},
+
+	// Data
+	srtmDataSource: 'data/boulder_plus.bin',
+	osmDataSource: 'data/boulder-osm.json',
+
+	// Other global options
+	render: {
+		buildings: true,
+		fireHydrants: true,
+		roads: true
+	},
+	bounds: null
+});
+
+// Once model is generated, we could add some more code here to add things to
+// the model, and whatnot
+
+
+
+
+
+
+
+
+
+// Inside berries-src.js
+
+// First we'd set up the very bare-bones of Berries (the global variable, class, dom, maybe some others)
+
+
+// Then we'd set up the worker class; B.Worker
+	
+
+
+var w = new Worker('berries-generator.js');
+
+var onMsgHandlers = {};
+
+function addMsgHandler(id, func) {
+	onMsgHandlers[id] = func;
+}
+
+function sendMsg(msg) {
+	w.postMessage(msg);
+}
+
+w.onmessage = function(e) {
+	// if onMsgHandlers[e.data.action] is defined, run that function with the data.
+	// else error
+}
+
+
+
+// Set up basic berries stuffs, pretty much the same way, but when we need to
+// generate something, send it off to the worker
+
+// Generate building would look like:
+B.Worker.addMsgHandler('generateBuilding', function(e){
+	// What to do with the building when it's returned
+});
+
+B.Worker.sendMsg({
+	action: 'generateBuilding',
+	// other params
+});
+
+
+
+
+
+// Inside berries-generator.js
+
+// Set up basic berries stuff, including B global, class, etc
+
+
+// Then we'd have something very similar to B.Worker above; the only difference is that w should be self:
+
+var w = self;
+// Maybe we can extract this out somehow, so we on Sly have to define the other stuff once
+
+// onMsgHandler and sendMsg would be the same.
+
+
+
+// Then instead of classes, we'd have:
+
+B.Worker.addMsgHandler('generateBuilding', function (e) {
+
+   // Generate the building.
+
+   B.Worker.sendMsg({
+      action: 'generateBuilding',
+      // Building object data
+   });
+
+});
+
+
+
+
+// Unrelated note about progressbar.
+// we could have:
+
+B.Progress = {
+   max: 0,
+   increment: function () {}, // Placeholder; should be replaced by model's init
+}
+
+// Then in model's init, we'd have something like
+// Add one to B.Progress.max for getting osm data, one for getting terrain data, and one for each feature type that will be rendered 
+// When each of those things finishes, B.Progress.increment();
+

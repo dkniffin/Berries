@@ -5,6 +5,7 @@ var deps = {
 		      'core/Class.js',
 		      'core/Browser.js',
 		      'worker/Worker.js',
+		      'worker/WebWorkerGeometryHelper.js',
 		      'core/Logger.js',
 		      'core/Premades.js',
 		      'materials/Material.js',

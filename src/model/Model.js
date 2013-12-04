@@ -60,9 +60,9 @@ B.Model = B.Class.extend({
 
 		// For debugging
 		//logger.log('Adding XYZ axes');
-		//this._addAxis('x', 1000000, 0xff0000);
-		//this._addAxis('y', 1000000, 0x00ff00);
-		//this._addAxis('z', 1000000, 0x0000ff);
+		this._addAxis('x', 1000000, 0xff0000);
+		this._addAxis('y', 1000000, 0x00ff00);
+		this._addAxis('z', 1000000, 0x0000ff);
 
 		// Add sunlight to the scene
 		logger.log('Adding sunlight');
@@ -77,9 +77,11 @@ B.Model = B.Class.extend({
 			action: 'loadLibrary',
 			url: options.threeJS
 		});
+		/*
 		B.Worker.sendMsg({
 			action: 'loadDefaultMats'
 		});
+*/
 
 		var model = this;
 		var terrain = this._terrain = new B.Terrain(options.bounds);
@@ -107,10 +109,11 @@ B.Model = B.Class.extend({
 			logger.log('Adding terrain to the model');
 			model.addTerrain(terrain);
 
+			B.ToDoCounter--;
 			// And start update/add process
 			logger.log('Running terrain callbacks');
 			terrain.runQueuedCallbacks();
-			B.ToDoCounter--;
+			
 		}.bind(this));
 
 
@@ -161,7 +164,7 @@ B.Model = B.Class.extend({
 	addTerrain: function (terrain) {
 		// Update the camera position
 		var xym = terrain._latlon2meters(this.options.initialCameraPos);
-		this._camera.position = new THREE.Vector3(xym.x, xym.y, 3000);
+		this._camera.position = new THREE.Vector3(xym.x, xym.y, 5000);
 
 		xym = terrain._latlon2meters(this.options.initialCameraLook);
 		this._camera.lookAt(new THREE.Vector3(xym.x, xym.y, 1640));
@@ -187,8 +190,8 @@ B.Model = B.Class.extend({
 			p2.set(length, 0, 0);
 			break;
 		case 'y':
-			p1.set(0, -length, 0);
-			p2.set(0, length, 0);
+			p1.set(100000, -length, 2800);
+			p2.set(100000, length, 2800);
 			break;
 		case 'z':
 			p1.set(0, 0, -length);

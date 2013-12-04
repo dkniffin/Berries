@@ -22,18 +22,8 @@ B.Terrain = B.Class.extend({
 		this._geometry = new THREE.PlaneGeometry(geoParts.width, geoParts.height,
 			geoParts.numVertsX - 1, geoParts.numVertsY - 1);
 
-		console.log('vertices');
-		var verts = geoParts.vertices;
-		for (var i = 0, l = verts.length; i < l; i += 3) {
-			this._geometry.vertices[i / 3] = new THREE.Vector3(verts[i],
-				verts[i + 1], verts[i + 2]);
-		}
-		console.log('faces');
-		var faces = geoParts.faces;
-		for (var j = 0, k = faces.length; j < k; j += 3) {
-			this._geometry.faces[j / 3] = new THREE.Face3(faces[j],
-				faces[j + 1], faces[j + 2]);
-		}
+		B.WebWorkerGeometryHelper.reconstruct(geoParts, this._geometry);
+
 
 		this._geometry.computeFaceNormals();
 		this._geometry.computeVertexNormals();
@@ -87,7 +77,7 @@ B.Terrain = B.Class.extend({
 	},
 	heightAtLatLon: function (lat, lon, xym) {
 		// Return the elevation of the terrain at the given lat/lon
-		
+
 		if (!this._bounds.contains([lat, lon])) {
 			//throw new Error('Coordinates outside of bounds');
 			console.error('Coordinates outside of bounds');

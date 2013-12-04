@@ -1,0 +1,42 @@
+Berries workflow
+================
+1) Get data for terrain and generate it (async, worker)
+ - On callback, run all the object placements (see below)
+
+2) Get OSM Data (async, main)
+
+3) When OSM data is available, start generating objects (async, worker)
+  - First, convert lat/lon coords to world coords in main
+  - Then, eg: foreach OSM object, worker.generateIt
+  - This will create it with an arbitrary, but known origin/position
+  *** See below for building example ***
+
+4) On callback, when an object is finished being generated, use a terrain
+function to update the position, and add that updated object to the model
+  - This will handle putting buildings at the right height
+  - This function will be asyncronous, and it wont get called until the terrain
+   is finished being generated. So, we'll need a queue of objects here that
+   need to be updated and added.
+
+5) Finally, add the object to the scene/model
+
+
+Building generator example
+==========================
+
+
+Inputs: nodes (in world coords), tags
+Outputs: vertices (1D array), faces (1D array), position (1D array)
+
+- Use first node as origin
+  - Save it's value as position
+  - Translate the others so they're relative to origin
+- Generate the building
+NOTE: At some point, it'd be nice to refactor it as a bufferGeometry, but that's too
+much work right now, and since the object will be added asyncronously, it's
+okay to take a while.
+  - Use three geometries
+  <Do what we're doing now>
+  - Convert vertices to array
+  - Convert faces to array
+<- Pass vertices, faces, and position back
