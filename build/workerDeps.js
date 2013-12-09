@@ -4,7 +4,6 @@ var deps = {
 		      'worker/Worker.js',
 		      'worker/WorkerHelper.js',
 		      'worker/WebWorkerGeometryHelper.js',
-		      'worker/loadOSMData.js',
 		      'core/Class.js',
 		      'core/Util.js',
 		      'geo/LatLng.js',

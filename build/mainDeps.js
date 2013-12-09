@@ -24,7 +24,6 @@ var deps = {
 		      'geo/crs/CRS.EPSG3857.js',
 		      'geo/crs/CRS.EPSG4326.js',
 		      'control/DefaultControl.js',
-		      //'core/Options.js',
 		      'model/Model.js'],
 		desc: 'The core of the library, including OOP, events, DOM facilities, basic units, projections (EPSG:3857 and EPSG:4326) and the base Map class.'
 	},
@@ -46,17 +45,10 @@ var deps = {
 		desc: 'Various objects to add to the scene.'
 	},
 
-	ObjectSets: {
-		src: ['object-sets/ObjectSet.js',
-			  'object-sets/RoadSet.js',
-			  'object-sets/BuildingSet.js'],
-		desc: 'Sets of geometries to render as one mesh.'
-	},
-
 	OSMDataContainer: {
 		src: ['osmDataContainer/OSMDataContainer.js'],
 		desc: 'A class to read in OSM data in JSON format, and output various types of data (eg: roads, buildings, etc).',
-		deps: ['Objects', 'ObjectSets']
+		deps: ['Objects']
 	}
 };
 
