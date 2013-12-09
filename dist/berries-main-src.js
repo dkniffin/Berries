@@ -2265,6 +2265,7 @@ B.Terrain = B.Class.extend({
 		setTimeout(function () {
 			if (this.callbackQueue.length === 0) { return; }
 			var i = 0;
+			/*
 			var func = function () {
 
 				var cb = this.callbackQueue[i];
@@ -2273,10 +2274,15 @@ B.Terrain = B.Class.extend({
 				// Space out the callbacks by 1 ms, to give time to update dom.
 				if (i < this.callbackQueue.length - 1) {
 					i++;
-					setTimeout(func, 1);
+					setTimeout(func, 0);
 				}
 			}.bind(this);
 			func();
+			*/
+			for (i = 0; i < this.callbackQueue.length - 1; i++) {
+				var cb = this.callbackQueue[i];
+				cb.callback(cb.object);
+			}
 		}.bind(this), 20);
 	},
 	updateObjPosition: function (object) {
