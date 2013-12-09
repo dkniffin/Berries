@@ -8,7 +8,8 @@ B.Building = B.Class.extend({
 	options: {
 		levels: 2,
 		levelHeight: 3.048, // meters
-		wallMaterial: B.Materials.CONCRETEWHITE
+		wallMaterial: B.Materials.CONCRETEWHITE,
+		roofMaterial: B.Materials.CONCRETEWHITE
 	},
 	initialize: function (geoParts, tags) {
 		this._tags = tags;
@@ -16,8 +17,8 @@ B.Building = B.Class.extend({
 		B.WebWorkerGeometryHelper.reconstruct(geoParts, this._geometry);
 
 		
-		var wallMatIndx = this._getWallMaterialIndex(tags);
-		var roofMatIndx = B.Materials.CONCRETEWHITE;
+		var wallMatIndx = this._getMaterialIndex(tags['building:material'], this.options.wallMaterial);
+		var roofMatIndx = this._getMaterialIndex(tags['roof:material'], this.options.roofMaterial);
 		var mesh = this._mesh = new THREE.Mesh(this._geometry,
 			/*new THREE.MeshBasicMaterial({
 				color: 'red'
@@ -35,15 +36,16 @@ B.Building = B.Class.extend({
 
 		return this;
 	},
-	_getWallMaterialIndex: function (tags) {
+	_getMaterialIndex: function (tag, deflt) {
 		/* 
-		Determine what material (or material index) should be used for the 
-		walls of the building
+		   Determine what material (or material index) should be used, based
+		   on the tags 
 		*/
+
 		// TODO: Test this. building:material has been added to the CC
 		var mat;
 		
-		switch (tags['building:material']) {
+		switch (tag) {
 		case 'glass':
 			mat = B.Materials.GLASSBLUE;
 			break;
@@ -56,8 +58,14 @@ B.Building = B.Class.extend({
 		case 'concrete':
 			mat = B.Materials.CONCRETEWHITE;
 			break;
+		case 'sandstone':
+			mat = B.Materials.SANDSTONEBROWN;
+			break;
+		case 'roof_tiles':
+			mat = B.Materials.ROOFTILERED;
+			break;
 		default:
-			mat = this.options.wallMaterial;
+			mat = deflt;
 			break;
 		}
 		

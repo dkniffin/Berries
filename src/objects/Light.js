@@ -18,17 +18,17 @@ B.Light = B.Class.extend({
 		dirLight.shadowCameraVisible = true;
 
 
-		dirLight.shadowMapWidth = 4096;
-		dirLight.shadowMapHeight = 4096;
+		dirLight.shadowMapWidth = 8192;
+		dirLight.shadowMapHeight = 8192;
 
-		var d = 1000;
+		var d = 10000;
 
 		dirLight.shadowCameraLeft = -d;
 		dirLight.shadowCameraRight = d;
 		dirLight.shadowCameraTop = d;
 		dirLight.shadowCameraBottom = -d;
 
-		dirLight.shadowCameraFar = 5000;
+		dirLight.shadowCameraFar = 3000;
 		dirLight.shadowCameraNear = -100;
 		//dirLight.shadowBias = 0.01;
 		dirLight.shadowDarkness = 0.5;

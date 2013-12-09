@@ -685,10 +685,12 @@ B.Materials = {
 
 // Colored Materials
 B.Materials.addMaterial('BRICKRED', new THREE.MeshPhongMaterial({color: 0x841F27, side: THREE.DoubleSide }));
+B.Materials.addMaterial('SANDSTONEBROWN', new THREE.MeshPhongMaterial({color: 0xC19F77, side: THREE.DoubleSide }));
 B.Materials.addMaterial('CONCRETEWHITE', new THREE.MeshPhongMaterial({color: 0xF2F2F2, side: THREE.DoubleSide }));
 B.Materials.addMaterial('GLASSBLUE', new THREE.MeshPhongMaterial({color: 0x009DDD, side: THREE.DoubleSide }));
 B.Materials.addMaterial('ASPHALTGREY', new THREE.MeshPhongMaterial({color: 0x757575, side: THREE.DoubleSide }));
 B.Materials.addMaterial('WOODBROWN', new THREE.MeshPhongMaterial({color: 0xAE8F60, side: THREE.DoubleSide }));
+B.Materials.addMaterial('ROOFTILERED', new THREE.MeshPhongMaterial({color: 0xC9555C, side: THREE.DoubleSide }));
 
 
 /*
@@ -1954,6 +1956,11 @@ B.Model = B.Class.extend({
 
 		// Rendering options
 		render: {
+			roads: {
+				roadThickness: 0.25,
+				lanes: 2,
+				laneWidth: 3.5 // meters
+			},
 			buildings: {
 				defaultBuildingMaterial: B.Materials.CONCRETEWHITE,
 				heightOptions: {
@@ -1961,8 +1968,7 @@ B.Model = B.Class.extend({
 					levelHeight: 3.048
 				}
 			},
-			fireHydrants: false,
-			roads: false
+			fireHydrants: false
 		},
 		modelContainer: document.body,
 		texturePath: null
@@ -2074,7 +2080,6 @@ B.Model = B.Class.extend({
 
 		// When everything's ready, start the animation sequence
 		var func = function () {
-			console.log('meh');
 			if (B.ToDoCounter === 0) {
 				this._logger.log('starting animation');
 				this._logger.hide();
@@ -2410,17 +2415,17 @@ B.Light = B.Class.extend({
 		dirLight.shadowCameraVisible = true;
 
 
-		dirLight.shadowMapWidth = 4096;
-		dirLight.shadowMapHeight = 4096;
+		dirLight.shadowMapWidth = 8192;
+		dirLight.shadowMapHeight = 8192;
 
-		var d = 1000;
+		var d = 10000;
 
 		dirLight.shadowCameraLeft = -d;
 		dirLight.shadowCameraRight = d;
 		dirLight.shadowCameraTop = d;
 		dirLight.shadowCameraBottom = -d;
 
-		dirLight.shadowCameraFar = 5000;
+		dirLight.shadowCameraFar = 3000;
 		dirLight.shadowCameraNear = -100;
 		//dirLight.shadowBias = 0.01;
 		dirLight.shadowDarkness = 0.5;
@@ -2460,165 +2465,14 @@ B.light = function (id, options) {
  * B.Road is a class for drawing a road
  */
 
-B.Road = B.Class.extend({
-
-	_osmDC: null,
-	_way: null,
-	_geometry: null,
-	options: {
-		lanes: 2,
-		laneWidth: 3.5 // meters
-	},
-	initialize: function (way, osmDC, model, options) {
-		options = B.setOptions(this, options);
-
-		this._way = way;
-		this._osmDC = osmDC;
-
-		// Do some logic to determine appropriate road width.
-		var width = this.options.lanes * this.options.laneWidth; // Default to input options
-		if (this._way.tags) {
-			var tags = this._way.tags;
-			if (tags.width) {
-				// If the width tag is defined, use that
-				width = tags.width;
-			} else {
-				// Otherwise, base the calculation on lanes
-				var numLanes = this.options.lanes; // Total for the whole road
-				if (tags.lanes) {
-					numLanes = tags.lanes;
-				} else if (tags.highway) {
-					switch (tags.highway) {
-					case 'motorway':
-					case 'trunk':
-					case 'primary':
-					case 'secondary':
-						numLanes = 4;
-						break;
-					case 'tertiary':
-					case 'residential':
-						numLanes = 2;
-						break;
-					case 'service':
-					case 'track':
-						numLanes = 1;
-						break;
-					}
-				}
-				var laneWidth = this.options.laneWidth;
-				// TODO: add logic to look for 'lane:widths' values
-				
-				// TODO: account for bicycle lanes, etc
-				width = numLanes * laneWidth;
-
-			}
-		}
-
-		// Create the cross section shape
-		// Credits go to bai (http://bai.dev.supcrit.com/scripts/engine/things/road.js)
-		/*
-		var thickness = 0.25,
-			thickscale = 4;
-		var roadpoints = [
-			new THREE.Vector2(-1, 0),
-			new THREE.Vector2(-1, -width / 2 - thickness * thickscale + 5),
-			new THREE.Vector2(-1, -width / 2 - thickness * thickscale),
-			new THREE.Vector2(0.1, -width / 2 - thickness * thickscale + 0.1),
-			new THREE.Vector2(thickness * 0.75, -width / 2),
-			new THREE.Vector2(thickness, -width / 2 + thickness * thickscale),
-			new THREE.Vector2(thickness, width / 2 - thickness * thickscale),
-			new THREE.Vector2(thickness * 0.75, width / 2),
-			new THREE.Vector2(0.1, width / 2 + thickness * thickscale - 0.1),
-			new THREE.Vector2(-1, width / 2 + thickness * thickscale),
-			new THREE.Vector2(-1, width / 2 + thickness * thickscale - 5),
-			new THREE.Vector2(-1, 0),
-	    ];
-	    */
-	    var thickness = 0.25;
-		var roadpoints = [
-			new THREE.Vector2(-width / 2, 0),
-			new THREE.Vector2(-width / 2,  thickness),
-			new THREE.Vector2(width / 2, thickness),
-			new THREE.Vector2(width / 2, 0)
-	    ];
-	    var roadshape = new THREE.Shape(roadpoints);
-
-
-
-	    var splinepoints = [];
-	    // Create the road spline (the path it follows)
-		for (var i in this._way.nodes) {
-			i = Number(i);
-			var nodeId = this._way.nodes[i];
-			var node = this._osmDC.getNode(nodeId);
-			var lat = Number(node.lat);
-			var lon = Number(node.lon);
-			var wvector = model.getTerrain().worldVector(lat, lon);
-
-			// Make sure points aren't too close
-			/*
-			if (i !== 0 &&
-				wvector.distanceTo(splinepoints[splinepoints.length - 1]) < 1) {
-				continue;
-			}
-			*/
-
-			wvector.z += thickness;
-
-
-
-			splinepoints.push(wvector);
-		}
-
-		var roadspline;
-		if (splinepoints[0].equals(splinepoints[splinepoints.length - 1])) {
-			splinepoints.pop();
-			roadspline = new THREE.ClosedSplineCurve3(splinepoints);
-		} else {
-			roadspline = new THREE.SplineCurve3(splinepoints);
-		}
-
-		/*var steps = Math.floor(roadspline.getLength() / 4);
-		if (steps < 1) { steps = 1; }*/
-		var steps = splinepoints.length;
-
-		var frames = {tangents: [], normals: [], binormals: []};
-		var normal = new THREE.Vector3(1, 0, 0);
-		for (i = 0; i < steps + 1; i++) {
-			var u = i / steps;
-			var tangent = roadspline.getTangentAt(u).normalize();
-			frames.tangents[i] = tangent;
-			frames.normals[i] = normal;
-			frames.binormals[i] = tangent.clone().cross(normal);
-		}
-
-
-		this._geometry = new THREE.ExtrudeGeometry(roadshape, {
-			extrudePath: roadspline,
-			steps: steps,
-			frames: frames,
-			closed: true
-		});
-
-	}
-});
-
-B.road = function (id, options) {
-	return new B.Road(id, options);
-};
-
-
-/*
- * B.Road is a class for drawing a road
- */
-
 B.Building = B.Class.extend({
 	_mesh: null,
 	_tags: null,
 	options: {
 		levels: 2,
 		levelHeight: 3.048, // meters
-		wallMaterial: B.Materials.CONCRETEWHITE
+		wallMaterial: B.Materials.CONCRETEWHITE,
+		roofMaterial: B.Materials.CONCRETEWHITE
 	},
 	initialize: function (geoParts, tags) {
 		this._tags = tags;
@@ -2626,8 +2480,8 @@ B.Building = B.Class.extend({
 		B.WebWorkerGeometryHelper.reconstruct(geoParts, this._geometry);
 
 		
-		var wallMatIndx = this._getWallMaterialIndex(tags);
-		var roofMatIndx = B.Materials.CONCRETEWHITE;
+		var wallMatIndx = this._getMaterialIndex(tags['building:material'], this.options.wallMaterial);
+		var roofMatIndx = this._getMaterialIndex(tags['roof:material'], this.options.roofMaterial);
 		var mesh = this._mesh = new THREE.Mesh(this._geometry,
 			/*new THREE.MeshBasicMaterial({
 				color: 'red'
@@ -2645,15 +2499,16 @@ B.Building = B.Class.extend({
 
 		return this;
 	},
-	_getWallMaterialIndex: function (tags) {
+	_getMaterialIndex: function (tag, deflt) {
 		/* 
-		Determine what material (or material index) should be used for the 
-		walls of the building
+		   Determine what material (or material index) should be used, based
+		   on the tags 
 		*/
+
 		// TODO: Test this. building:material has been added to the CC
 		var mat;
 		
-		switch (tags['building:material']) {
+		switch (tag) {
 		case 'glass':
 			mat = B.Materials.GLASSBLUE;
 			break;
@@ -2666,8 +2521,14 @@ B.Building = B.Class.extend({
 		case 'concrete':
 			mat = B.Materials.CONCRETEWHITE;
 			break;
+		case 'sandstone':
+			mat = B.Materials.SANDSTONEBROWN;
+			break;
+		case 'roof_tiles':
+			mat = B.Materials.ROOFTILERED;
+			break;
 		default:
-			mat = this.options.wallMaterial;
+			mat = deflt;
 			break;
 		}
 		
@@ -2692,6 +2553,57 @@ B.BuildingHelper = {
 	}
 };
 
+
+/*
+ * B.Road is a class for drawing a road
+ */
+
+B.Road = B.Class.extend({
+
+	_osmDC: null,
+	_way: null,
+	options: {
+	},
+	initialize: function (geoParts, tags) {
+		this._tags = tags;
+		this._geometry = new THREE.Geometry();
+
+		B.WebWorkerGeometryHelper.reconstruct(geoParts, this._geometry);
+		var roadMatIndx = B.Materials.ASPHALTGREY;
+		var mesh = this._mesh = new THREE.Mesh(this._geometry,
+			/*new THREE.MeshBasicMaterial({
+				color: 'red'
+				//wireframe: true
+			})*/
+			new THREE.MeshFaceMaterial([
+				B.Materials.MATERIALS[roadMatIndx]
+			])
+		);
+		mesh.position = new THREE.Vector3(geoParts.position.x, geoParts.position.y, 0);
+		//mesh.castShadow = true;
+		mesh.receiveShadow = true;
+
+		return this;
+
+	}
+});
+
+B.RoadHelper = {
+	workerCallback: function (e) {
+		var model = this._model;
+		var terrain = this._model._terrain;
+
+		var road = new B.Road(e.data.geometryParts, e.data.tags);
+
+		// Run a terrain callback on that object
+		terrain.addObjectCallback(road, function (object) {
+			// Update the building's position
+			terrain.updateObjPosition(object._mesh);
+			// Add the object to the model
+			model.addObject(object._mesh);
+		}.bind(this));
+	}
+};
 
 B.FireHydrant = B.Class.extend({
 	_node: null,
@@ -2752,6 +2664,7 @@ B.OSMDataContainer = B.Class.extend({
 		// For each feature that should be rendered
 		for (var feature in options.render) {
 			var featureOptions = options.render[feature];
+			var id, nodes, i, nodeId;
 
 			if (featureOptions === false) { continue; }
 
@@ -2764,20 +2677,16 @@ B.OSMDataContainer = B.Class.extend({
 
 				model._logger.log('About to generate ' + buildings.length + ' buildings');
 
-				var meh = false;
-				for (var bId in buildings) {
-					var building = buildings[bId];
-					var nodes = [];
+				for (id in buildings) {
+					var building = buildings[id];
+					nodes = [];
 
-					for (var i in building.nodes) {
-						var nodeId = building.nodes[i];
+					for (i in building.nodes) {
+						nodeId = building.nodes[i];
 						nodes[i] = this.getNode(nodeId);
 					}
 
-					if (!meh) {
-						console.log('before input:' + nodes.length);
-						meh = true;
-					}
+
 					// Make calls to worker to generate objects
 					B.Worker.sendMsg({
 						action: 'generateBuilding',
@@ -2789,7 +2698,37 @@ B.OSMDataContainer = B.Class.extend({
 					
 				}
 				break;
+			case 'roads':
+				model._logger.log('Generating roads');
+
+				var roads = this.get('roads');
+
+				model._logger.log('About to generate ' + roads.length + ' roads');
+
+				for (id in roads) {
+					var road = roads[id];
+					nodes = [];
+
+					for (i in road.nodes) {
+						nodeId = road.nodes[i];
+						nodes[i] = this.getNode(nodeId);
+					}
+
+
+					// Make calls to worker to generate objects
+					B.Worker.sendMsg({
+						action: 'generateRoad',
+						nodes: nodes,
+						tags: road.tags,
+						origin: origin,
+						options: featureOptions
+					}, B.RoadHelper.workerCallback.bind(this));
+					
+				}
+				break;
+
 			}
+
 		}
 		//model.addObject();
 	},
@@ -2819,8 +2758,8 @@ B.OSMDataContainer = B.Class.extend({
 				}
 			}
 		} else {
-			// TODO: check if this functionality works
 			// Else, merge the two.
+			// TODO: check if this functionality works
 			
 			B.Util.arrayMerge(this._nodes, data.nodes);
 			B.Util.arrayMerge(this._ways, data.ways);

@@ -30,6 +30,11 @@ B.Model = B.Class.extend({
 
 		// Rendering options
 		render: {
+			roads: {
+				roadThickness: 0.25,
+				lanes: 2,
+				laneWidth: 3.5 // meters
+			},
 			buildings: {
 				defaultBuildingMaterial: B.Materials.CONCRETEWHITE,
 				heightOptions: {
@@ -37,8 +42,7 @@ B.Model = B.Class.extend({
 					levelHeight: 3.048
 				}
 			},
-			fireHydrants: false,
-			roads: false
+			fireHydrants: false
 		},
 		modelContainer: document.body,
 		texturePath: null
@@ -150,7 +154,6 @@ B.Model = B.Class.extend({
 
 		// When everything's ready, start the animation sequence
 		var func = function () {
-			console.log('meh');
 			if (B.ToDoCounter === 0) {
 				this._logger.log('starting animation');
 				this._logger.hide();

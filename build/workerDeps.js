@@ -18,7 +18,8 @@ var deps = {
 	},*/
 	Generators: {
 		src: ['worker/generateTerrain.js',
-			  'worker/generateBuilding.js'],
+			  'worker/generateBuilding.js',
+			  'worker/generateRoad.js'],
 		desc: 'code to build various parts of the model',
 		deps: ['Core']
 	}

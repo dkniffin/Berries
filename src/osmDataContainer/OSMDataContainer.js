@@ -23,6 +23,7 @@ B.OSMDataContainer = B.Class.extend({
 		// For each feature that should be rendered
 		for (var feature in options.render) {
 			var featureOptions = options.render[feature];
+			var id, nodes, i, nodeId;
 
 			if (featureOptions === false) { continue; }
 
@@ -35,20 +36,16 @@ B.OSMDataContainer = B.Class.extend({
 
 				model._logger.log('About to generate ' + buildings.length + ' buildings');
 
-				var meh = false;
-				for (var bId in buildings) {
-					var building = buildings[bId];
-					var nodes = [];
+				for (id in buildings) {
+					var building = buildings[id];
+					nodes = [];
 
-					for (var i in building.nodes) {
-						var nodeId = building.nodes[i];
+					for (i in building.nodes) {
+						nodeId = building.nodes[i];
 						nodes[i] = this.getNode(nodeId);
 					}
 
-					if (!meh) {
-						console.log('before input:' + nodes.length);
-						meh = true;
-					}
+
 					// Make calls to worker to generate objects
 					B.Worker.sendMsg({
 						action: 'generateBuilding',
@@ -60,7 +57,37 @@ B.OSMDataContainer = B.Class.extend({
 					
 				}
 				break;
+			case 'roads':
+				model._logger.log('Generating roads');
+
+				var roads = this.get('roads');
+
+				model._logger.log('About to generate ' + roads.length + ' roads');
+
+				for (id in roads) {
+					var road = roads[id];
+					nodes = [];
+
+					for (i in road.nodes) {
+						nodeId = road.nodes[i];
+						nodes[i] = this.getNode(nodeId);
+					}
+
+
+					// Make calls to worker to generate objects
+					B.Worker.sendMsg({
+						action: 'generateRoad',
+						nodes: nodes,
+						tags: road.tags,
+						origin: origin,
+						options: featureOptions
+					}, B.RoadHelper.workerCallback.bind(this));
+					
+				}
+				break;
+
 			}
+
 		}
 		//model.addObject();
 	},
@@ -90,8 +117,8 @@ B.OSMDataContainer = B.Class.extend({
 				}
 			}
 		} else {
-			// TODO: check if this functionality works
 			// Else, merge the two.
+			// TODO: check if this functionality works
 			
 			B.Util.arrayMerge(this._nodes, data.nodes);
 			B.Util.arrayMerge(this._ways, data.ways);
