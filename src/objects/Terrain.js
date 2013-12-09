@@ -136,7 +136,7 @@ B.Terrain = B.Class.extend({
 		// Return a Vector3 with world coords for given lat, lon
 		var xym = this._latlon2meters(lat, lon);
 
-		var ele = this.heightAt(lat, lon, xym);
+		var ele = this.heightAtLatLon(lat, lon, xym);
 
 		return new THREE.Vector3(xym.x, xym.y, ele);
 	},

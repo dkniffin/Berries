@@ -1,5 +1,4 @@
 B.FireHydrant = B.Class.extend({
-	_node: null,
 	options: {
 
 	},
@@ -7,26 +6,26 @@ B.FireHydrant = B.Class.extend({
 		options = B.setOptions(this, options);
 
 		this._node = node;
+		this._mesh = B.Premades.fireHydrant.clone();
 
 		return this;
 	},
 	addTo: function (model) {
-
-		// Find where to put the model
 		var node = this._node;
 
-		var lat = Number(node.lat);
-		var lon = Number(node.lon);
-		var vec = model.getTerrain().worldVector(lat, lon);
+		var terrain = model._terrain;
+		// Run a terrain callback on that object
+		terrain.addObjectCallback(this, function (object) {
+			var lat = Number(node.lat);
+			var lon = Number(node.lon);
+			var vec = model.getTerrain().worldVector(lat, lon);
+			this._mesh.position = vec;
 
-		var fh = B.Premades.fireHydrant.clone();
-		fh.position = vec;
-
-		model.addObject(fh);
+			// Update the building's position
+			terrain.updateObjPosition(object._mesh);
+			// Add the object to the model
+			model.addObject(object._mesh);
+		}.bind(this));
 
 	}
 });
-
-B.firehydrant = function (id, options) {
-	return new B.Building(id, options);
-};

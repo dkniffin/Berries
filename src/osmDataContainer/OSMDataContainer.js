@@ -85,6 +85,37 @@ B.OSMDataContainer = B.Class.extend({
 					
 				}
 				break;
+			case 'fireHydrants':
+				model._logger.log('Generating fire hydrants');
+
+				var fhs = this.get('fire_hydrants');
+
+				model._logger.log('About to generate ' + fhs.length + ' fire hydrants');
+
+				for (id in fhs) {
+					var node = fhs[id];
+					new B.FireHydrant(node, featureOptions).addTo(model);
+
+					
+					/*for (i in fh.nodes) {
+						nodeId = road.nodes[i];
+						nodes[i] = this.getNode(nodeId);
+					}*/
+
+
+					// Make calls to worker to generate objects
+					/*
+					B.Worker.sendMsg({
+						action: 'generateRoad',
+						nodes: nodes,
+						tags: road.tags,
+						origin: origin,
+						options: featureOptions
+					}, B.RoadHelper.workerCallback.bind(this));
+					*/
+					
+				}
+				break;
 
 			}
 

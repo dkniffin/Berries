@@ -629,13 +629,13 @@ B.Premades = {
 		for (var i in B.Premades._definitions) {
 			var def = B.Premades._definitions[i];
 			// If the opions say to load the object
-			if (B.Options.render[def.id + 's']) {
-				logger.log('Loading ' + def.id);
+			//if (B.Options.render[def.id + 's']) {
+			logger.log('Loading ' + def.id);
 
-				loader.load(def.url, onload);
-			} else {
-				loadedCounter++;
-			}
+			loader.load(def.url, onload);
+			//} else {
+				//loadedCounter++;
+			//}
 		}
 
 
@@ -1956,6 +1956,7 @@ B.Model = B.Class.extend({
 
 		// Rendering options
 		render: {
+			fireHydrants: true,
 			roads: {
 				roadThickness: 0.25,
 				lanes: 2,
@@ -1967,8 +1968,8 @@ B.Model = B.Class.extend({
 					levels: 2,
 					levelHeight: 3.048
 				}
-			},
-			fireHydrants: false
+			}
+			
 		},
 		modelContainer: document.body,
 		texturePath: null
@@ -2005,6 +2006,8 @@ B.Model = B.Class.extend({
 
 		//var light2 = new THREE.AmbientLight(0x404040); // soft white light
 		//this._scene.add(light2);
+
+		B.Premades.load(logger);
 
 		// Add three.js to the web worker
 		B.Worker.sendMsg({
@@ -2347,7 +2350,7 @@ B.Terrain = B.Class.extend({
 		// Return a Vector3 with world coords for given lat, lon
 		var xym = this._latlon2meters(lat, lon);
 
-		var ele = this.heightAt(lat, lon, xym);
+		var ele = this.heightAtLatLon(lat, lon, xym);
 
 		return new THREE.Vector3(xym.x, xym.y, ele);
 	},
@@ -2606,7 +2609,6 @@ B.RoadHelper = {
 };
 
 B.FireHydrant = B.Class.extend({
-	_node: null,
 	options: {
 
 	},
@@ -2614,29 +2616,29 @@ B.FireHydrant = B.Class.extend({
 		options = B.setOptions(this, options);
 
 		this._node = node;
+		this._mesh = B.Premades.fireHydrant.clone();
 
 		return this;
 	},
 	addTo: function (model) {
-
-		// Find where to put the model
 		var node = this._node;
 
-		var lat = Number(node.lat);
-		var lon = Number(node.lon);
-		var vec = model.getTerrain().worldVector(lat, lon);
+		var terrain = model._terrain;
+		// Run a terrain callback on that object
+		terrain.addObjectCallback(this, function (object) {
+			var lat = Number(node.lat);
+			var lon = Number(node.lon);
+			var vec = model.getTerrain().worldVector(lat, lon);
+			this._mesh.position = vec;
 
-		var fh = B.Premades.fireHydrant.clone();
-		fh.position = vec;
-
-		model.addObject(fh);
+			// Update the building's position
+			terrain.updateObjPosition(object._mesh);
+			// Add the object to the model
+			model.addObject(object._mesh);
+		}.bind(this));
 
 	}
 });
-
-B.firehydrant = function (id, options) {
-	return new B.Building(id, options);
-};
 
 
 /* 
@@ -2723,6 +2725,37 @@ B.OSMDataContainer = B.Class.extend({
 						origin: origin,
 						options: featureOptions
 					}, B.RoadHelper.workerCallback.bind(this));
+					
+				}
+				break;
+			case 'fireHydrants':
+				model._logger.log('Generating fire hydrants');
+
+				var fhs = this.get('fire_hydrants');
+
+				model._logger.log('About to generate ' + fhs.length + ' fire hydrants');
+
+				for (id in fhs) {
+					var node = fhs[id];
+					new B.FireHydrant(node, featureOptions).addTo(model);
+
+					
+					/*for (i in fh.nodes) {
+						nodeId = road.nodes[i];
+						nodes[i] = this.getNode(nodeId);
+					}*/
+
+
+					// Make calls to worker to generate objects
+					/*
+					B.Worker.sendMsg({
+						action: 'generateRoad',
+						nodes: nodes,
+						tags: road.tags,
+						origin: origin,
+						options: featureOptions
+					}, B.RoadHelper.workerCallback.bind(this));
+					*/
 					
 				}
 				break;

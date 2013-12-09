@@ -30,6 +30,7 @@ B.Model = B.Class.extend({
 
 		// Rendering options
 		render: {
+			fireHydrants: true,
 			roads: {
 				roadThickness: 0.25,
 				lanes: 2,
@@ -41,8 +42,8 @@ B.Model = B.Class.extend({
 					levels: 2,
 					levelHeight: 3.048
 				}
-			},
-			fireHydrants: false
+			}
+			
 		},
 		modelContainer: document.body,
 		texturePath: null
@@ -79,6 +80,8 @@ B.Model = B.Class.extend({
 
 		//var light2 = new THREE.AmbientLight(0x404040); // soft white light
 		//this._scene.add(light2);
+
+		B.Premades.load(logger);
 
 		// Add three.js to the web worker
 		B.Worker.sendMsg({

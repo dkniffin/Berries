@@ -25,13 +25,13 @@ B.Premades = {
 		for (var i in B.Premades._definitions) {
 			var def = B.Premades._definitions[i];
 			// If the opions say to load the object
-			if (B.Options.render[def.id + 's']) {
-				logger.log('Loading ' + def.id);
+			//if (B.Options.render[def.id + 's']) {
+			logger.log('Loading ' + def.id);
 
-				loader.load(def.url, onload);
-			} else {
-				loadedCounter++;
-			}
+			loader.load(def.url, onload);
+			//} else {
+				//loadedCounter++;
+			//}
 		}
 
 
