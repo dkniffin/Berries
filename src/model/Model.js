@@ -14,7 +14,7 @@ B.Model = B.Class.extend({
 		logContainer: document.body,
 		logOptions: {},
 
-		// three.js location (relative to the container with the worker js file)
+		// three.js location (relative to the folder with the worker js file)
 		threeJS: null,
 
 		// Camera options
@@ -48,7 +48,6 @@ B.Model = B.Class.extend({
 		modelContainer: document.body,
 		texturePath: null
 	},
-
 	initialize: function (options) {
 		options = B.setOptions(this, options);
 		this._origin = options.bounds.getSouthWest();
@@ -72,8 +71,13 @@ B.Model = B.Class.extend({
 		// Add sunlight to the scene
 		logger.log('Adding sunlight');
 		var light = new B.Light();
+
+		// This should determine the sun angle
+		// NOTE: There's a bug here that still needs to be worked out; when
+		// you rotate the camera, the sunlight moves with it.
 		light._light.position = new THREE.Vector3(0, 0, 0);
-		light._light.target.position = new THREE.Vector3(0, 0, -5); // This should determine the sun angle
+		light._light.target.position = new THREE.Vector3(0, 0, -5);
+
 		this._camera.add(light._light);
 		this._camera.add(light._light.target);
 		this._scene.add(this._camera);
@@ -88,17 +92,12 @@ B.Model = B.Class.extend({
 			action: 'loadLibrary',
 			url: options.threeJS
 		});
-		/*
-		B.Worker.sendMsg({
-			action: 'loadDefaultMats'
-		});
-*/
 
 		var model = this;
 		var terrain = this._terrain = new B.Terrain(options.bounds);
 
 
-		// Generate the terrain
+		// Send a message to the worker to generate the terrain
 		B.ToDoCounter++;
 		B.Worker.sendMsg({
 			action: 'generateTerrain',
@@ -133,6 +132,7 @@ B.Model = B.Class.extend({
 		var xhr = new XMLHttpRequest();
 		xhr.open('GET', options.osmDataSource, true);
 		xhr.onload = function () {
+			// When the data is loaded...
 			var data = JSON.parse(xhr.responseText);
 
 			// Deal with a rare bug where an OSM way has only one node
@@ -143,11 +143,12 @@ B.Model = B.Class.extend({
 				}
 			}
 
-			// Put the data in an OSMDataContainer
+			// Put the data in an OSMDataContainer object
 			var dc = new B.OSMDataContainer(data);
 
-			// Add to the model; this runs a bunch of code that generates the
-			// features and adds callbacks for them to be added to the model
+			// Add the data container to the model; this runs a bunch of code
+			// that generates the features and adds callbacks for them to be
+			// added to the model
 			dc.addTo(model, options);
 			B.ToDoCounter--;
 		}.bind(this);
@@ -181,7 +182,7 @@ B.Model = B.Class.extend({
 
 		//this._camera.position = new THREE.Vector3(0, 0, 0);
 
-
+		// Add the terrain mesh to the scene
 		this._scene.add(terrain._mesh);
 	},
 	getTerrain: function () {
@@ -192,6 +193,8 @@ B.Model = B.Class.extend({
 		return this;
 	},
 	_addAxis: function (axis, length, color) {
+		// This is for debugging. It draws a line for the given axis in the
+		// given color
 		var p1 = new THREE.Vector3(),
 			p2 = new THREE.Vector3();
 		switch (axis) {
@@ -200,8 +203,8 @@ B.Model = B.Class.extend({
 			p2.set(length, 0, 0);
 			break;
 		case 'y':
-			p1.set(100000, -length, 2800);
-			p2.set(100000, length, 2800);
+			p1.set(0, -length, 0);
+			p2.set(0, length, 0);
 			break;
 		case 'z':
 			p1.set(0, 0, -length);
@@ -216,6 +219,7 @@ B.Model = B.Class.extend({
         this._scene.add(line);
 	},
 	_initContainer: function (id) {
+		// Initialized the rendering container
 		var container = this._container = B.DomUtil.get(id);
 
 		if (!container) {
@@ -226,9 +230,10 @@ B.Model = B.Class.extend({
 		container._berries = true;
 	},
 	_initThree: function () {
+		// Initialize all the basic three.js stuff
 		this._scene = this._scene = new THREE.Scene();
 
-		// TODO: Add some logic to do canvas or WebGL (or maybe SVG?)
+		// TODO: Add some logic to do canvas (or maybe SVG?)
 		this._renderer = new THREE.WebGLRenderer();
 		this._renderer.setSize(window.innerWidth, window.innerHeight);
 
@@ -236,13 +241,8 @@ B.Model = B.Class.extend({
 		this._renderer.gammaOutput = true;
 		//this._renderer.physicallyBasedShading = true;
 
-
 		this._renderer.shadowMapEnabled = true;
 		this._renderer.shadowMapSoft = true;
-		//this._renderer.shadowCameraNear = 3;
-		//this._renderer.shadowCameraFar = 20000;
-		//this._renderer.shadowCameraFov = 50;
-		//this._renderer.shadowMapCullFace = THREE.CullFaceBack;
 
 		// Empty the rendering container
 		this._container.innerHTML = '';
@@ -258,9 +258,6 @@ B.Model = B.Class.extend({
 
 		// Init the controls
 		this._controls = new B.DefaultControl(camera);
-	},
-	_initLoadManager: function () {
-		
 	},
 	_render: function () {
 		//this._controls.update(this._clock.getDelta()); // Update the controls based on a clock

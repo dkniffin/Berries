@@ -1,3 +1,5 @@
+/* B.Materials is a global object that contains all defined materials */
+
 B.Materials = {
 	MATERIALS: [],
 	addMaterial: function (name, material) {

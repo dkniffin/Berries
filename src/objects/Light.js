@@ -11,11 +11,9 @@ B.Light = B.Class.extend({
 		options = B.setOptions(this, options);
 
 		var dirLight = this._light = new THREE.DirectionalLight(0xffffff, 1);
-		//dirLight.position = this._position;
-		//dirLight.target.position = new THREE.Vector3(4311, 1640, 7065);
 
 		dirLight.castShadow = true;
-		dirLight.shadowCameraVisible = true;
+		dirLight.shadowCameraVisible = false;
 
 
 		dirLight.shadowMapWidth = 8192;
@@ -23,36 +21,25 @@ B.Light = B.Class.extend({
 
 		var d = 10000;
 
+		// This controls the size of the box for the camera
 		dirLight.shadowCameraLeft = -d;
 		dirLight.shadowCameraRight = d;
 		dirLight.shadowCameraTop = d;
 		dirLight.shadowCameraBottom = -d;
-
 		dirLight.shadowCameraFar = 3000;
 		dirLight.shadowCameraNear = -100;
-		//dirLight.shadowBias = 0.01;
-		dirLight.shadowDarkness = 0.5;
 
-		//this._position = position;
+		// This controls the position of the shadows. Tweaking it can remove
+		// an effect known as a peter panning (separation between the shadow
+		// and the object)
+		//dirLight.shadowBias = 0.01; 
+		
+		dirLight.shadowDarkness = 0.5; // How dark are the shadows?
 		
 		return this;
 	},
 	addTo: function (model) {
-
-/*
-		var	hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.6);
-		hemiLight.color.setHSL(0.6, 1, 0.6);
-		hemiLight.groundColor.setHSL(0.095, 1, 0.75);
-		hemiLight.position.set(0, 3000, 0);
-		hemiLight.visible = true;
-		model.addObject(hemiLight);
-*/
-
-		
-
-
 		model.addObject(this._light);
-
 
 		return this;
 

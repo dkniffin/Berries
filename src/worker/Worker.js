@@ -1,3 +1,8 @@
+/* 
+B.Worker is a wrapper object for communications between the main thread and
+the web worker 
+*/
+
 B.Worker = {
 	/* global self */
 	w: typeof window === 'undefined' ? self : new Worker('lib/js/berries/dist/berries-worker-src.js'),

@@ -1,7 +1,8 @@
 /* 
- * B.OSMDataContainer is reads in OSM data in JSON format, and allows 
- * access to various data (eg: roads, buildings, etc)
- */
+B.OSMDataContainer reads in OSM data in JSON format, and allows access to
+various features (eg: roads, buildings, etc). This class also makes calls to
+the web worker to generate objects, and creates Berries objects out of them
+*/
 
 B.OSMDataContainer = B.Class.extend({
 	_nodes: [],
@@ -20,13 +21,15 @@ B.OSMDataContainer = B.Class.extend({
 		this._model = model;
 		var origin = model._origin;
 
-		// For each feature that should be rendered
+		// For each feature
 		for (var feature in options.render) {
 			var featureOptions = options.render[feature];
 			var id, nodes, i, nodeId;
 
+			// If the options say to skip it, go to the next feature
 			if (featureOptions === false) { continue; }
 
+			// Switch on the feature name to deterine how to handle it
 			switch (feature) {
 			case 'buildings':
 				model._logger.log('Generating buildings');
@@ -36,10 +39,12 @@ B.OSMDataContainer = B.Class.extend({
 
 				model._logger.log('About to generate ' + buildings.length + ' buildings');
 
+				// For each building
 				for (id in buildings) {
 					var building = buildings[id];
 					nodes = [];
 
+					// Get the OSM nodes for it
 					for (i in building.nodes) {
 						nodeId = building.nodes[i];
 						nodes[i] = this.getNode(nodeId);
@@ -53,6 +58,7 @@ B.OSMDataContainer = B.Class.extend({
 						tags: building.tags,
 						origin: origin,
 						options: featureOptions
+					// When it's done, send the returned data to a callback function
 					}, B.BuildingHelper.workerCallback.bind(this));
 					
 				}
@@ -64,6 +70,7 @@ B.OSMDataContainer = B.Class.extend({
 
 				model._logger.log('About to generate ' + roads.length + ' roads');
 
+				// For each road
 				for (id in roads) {
 					var road = roads[id];
 					nodes = [];
@@ -81,6 +88,7 @@ B.OSMDataContainer = B.Class.extend({
 						tags: road.tags,
 						origin: origin,
 						options: featureOptions
+					// When it's done, send the returned data to a callback function
 					}, B.RoadHelper.workerCallback.bind(this));
 					
 				}
@@ -95,25 +103,6 @@ B.OSMDataContainer = B.Class.extend({
 				for (id in fhs) {
 					var node = fhs[id];
 					new B.FireHydrant(node, featureOptions).addTo(model);
-
-					
-					/*for (i in fh.nodes) {
-						nodeId = road.nodes[i];
-						nodes[i] = this.getNode(nodeId);
-					}*/
-
-
-					// Make calls to worker to generate objects
-					/*
-					B.Worker.sendMsg({
-						action: 'generateRoad',
-						nodes: nodes,
-						tags: road.tags,
-						origin: origin,
-						options: featureOptions
-					}, B.RoadHelper.workerCallback.bind(this));
-					*/
-					
 				}
 				break;
 
@@ -122,16 +111,8 @@ B.OSMDataContainer = B.Class.extend({
 		}
 		//model.addObject();
 	},
-	workerCallback: function (e) {
-		var model = this._model;
-		var terrain = this._model._terrain;
-		// Run the callback on that object
-		terrain.addObjectCallback(e.object, function (object) {
-			terrain.updateObjPosition(object);
-			model.addObject(object);
-		}.bind(this));
-	},
 	addData: function (data) {
+		// Add data to the OSMDataContainer object
 
 		if (!this._data) {
 			// If the data doesn't already exist, simply add it
@@ -157,6 +138,8 @@ B.OSMDataContainer = B.Class.extend({
 		}
 	},
 	get: function (feature) {
+		// Get an OSM feature
+
 		var features = [];
 		var wayid, way;
 		var nodeid, node;

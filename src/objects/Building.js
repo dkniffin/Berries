@@ -1,5 +1,5 @@
 /*
- * B.Road is a class for drawing a road
+ * B.Building is a class for creating a building
  */
 
 B.Building = B.Class.extend({
@@ -20,10 +20,6 @@ B.Building = B.Class.extend({
 		var wallMatIndx = this._getMaterialIndex(tags['building:material'], this.options.wallMaterial);
 		var roofMatIndx = this._getMaterialIndex(tags['roof:material'], this.options.roofMaterial);
 		var mesh = this._mesh = new THREE.Mesh(this._geometry,
-			/*new THREE.MeshBasicMaterial({
-				color: 'red'
-				//wireframe: true
-			})*/
 			new THREE.MeshFaceMaterial([
 				B.Materials.MATERIALS[wallMatIndx],
 				B.Materials.MATERIALS[roofMatIndx]

@@ -467,6 +467,11 @@ B.Class.addInitHook = function (fn) { // (Function) || (String, args...)
 }());
 
 
+/* 
+B.Worker is a wrapper object for communications between the main thread and
+the web worker 
+*/
+
 B.Worker = {
 	/* global self */
 	w: typeof window === 'undefined' ? self : new Worker('lib/js/berries/dist/berries-worker-src.js'),
@@ -602,16 +607,17 @@ B.Logger = B.Class.extend({
 	
 });
 
-/* Load all pre-made models */
+/* Premade objects container */
 
 B.Premades = {
-	_definitions: [
+	_definitions: [ // Definitions for each premade object
 		{
 			id: 'fireHydrant',
 			url: B.Util.getDaePath() + '/fire_hydrant_red.dae'
 		}
 	],
 	load: function (logger) {
+		// Load the premade objects (download them and save them to memory)
 		var loadedCounter = 0;
 		var loader = new THREE.ColladaLoader();
 		loader.options.convertUpAxis = true;
@@ -621,6 +627,7 @@ B.Premades = {
 		};
 
 		var onload = function (result) {
+			// Save the object as B.Premades.<id> to be referenced later
 			B.Premades[def.id] = result.scene;
 			loadedCounter++;
 		};
@@ -628,14 +635,9 @@ B.Premades = {
 		// Load all the models
 		for (var i in B.Premades._definitions) {
 			var def = B.Premades._definitions[i];
-			// If the opions say to load the object
-			//if (B.Options.render[def.id + 's']) {
 			logger.log('Loading ' + def.id);
 
 			loader.load(def.url, onload);
-			//} else {
-				//loadedCounter++;
-			//}
 		}
 
 
@@ -652,6 +654,8 @@ B.Premades = {
 
 
 
+
+/* B.Materials is a global object that contains all defined materials */
 
 B.Materials = {
 	MATERIALS: [],
@@ -1940,7 +1944,7 @@ B.Model = B.Class.extend({
 		logContainer: document.body,
 		logOptions: {},
 
-		// three.js location (relative to the container with the worker js file)
+		// three.js location (relative to the folder with the worker js file)
 		threeJS: null,
 
 		// Camera options
@@ -1974,7 +1978,6 @@ B.Model = B.Class.extend({
 		modelContainer: document.body,
 		texturePath: null
 	},
-
 	initialize: function (options) {
 		options = B.setOptions(this, options);
 		this._origin = options.bounds.getSouthWest();
@@ -1998,8 +2001,13 @@ B.Model = B.Class.extend({
 		// Add sunlight to the scene
 		logger.log('Adding sunlight');
 		var light = new B.Light();
+
+		// This should determine the sun angle
+		// NOTE: There's a bug here that still needs to be worked out; when
+		// you rotate the camera, the sunlight moves with it.
 		light._light.position = new THREE.Vector3(0, 0, 0);
-		light._light.target.position = new THREE.Vector3(0, 0, -5); // This should determine the sun angle
+		light._light.target.position = new THREE.Vector3(0, 0, -5);
+
 		this._camera.add(light._light);
 		this._camera.add(light._light.target);
 		this._scene.add(this._camera);
@@ -2014,17 +2022,12 @@ B.Model = B.Class.extend({
 			action: 'loadLibrary',
 			url: options.threeJS
 		});
-		/*
-		B.Worker.sendMsg({
-			action: 'loadDefaultMats'
-		});
-*/
 
 		var model = this;
 		var terrain = this._terrain = new B.Terrain(options.bounds);
 
 
-		// Generate the terrain
+		// Send a message to the worker to generate the terrain
 		B.ToDoCounter++;
 		B.Worker.sendMsg({
 			action: 'generateTerrain',
@@ -2059,6 +2062,7 @@ B.Model = B.Class.extend({
 		var xhr = new XMLHttpRequest();
 		xhr.open('GET', options.osmDataSource, true);
 		xhr.onload = function () {
+			// When the data is loaded...
 			var data = JSON.parse(xhr.responseText);
 
 			// Deal with a rare bug where an OSM way has only one node
@@ -2069,11 +2073,12 @@ B.Model = B.Class.extend({
 				}
 			}
 
-			// Put the data in an OSMDataContainer
+			// Put the data in an OSMDataContainer object
 			var dc = new B.OSMDataContainer(data);
 
-			// Add to the model; this runs a bunch of code that generates the
-			// features and adds callbacks for them to be added to the model
+			// Add the data container to the model; this runs a bunch of code
+			// that generates the features and adds callbacks for them to be
+			// added to the model
 			dc.addTo(model, options);
 			B.ToDoCounter--;
 		}.bind(this);
@@ -2107,7 +2112,7 @@ B.Model = B.Class.extend({
 
 		//this._camera.position = new THREE.Vector3(0, 0, 0);
 
-
+		// Add the terrain mesh to the scene
 		this._scene.add(terrain._mesh);
 	},
 	getTerrain: function () {
@@ -2118,6 +2123,8 @@ B.Model = B.Class.extend({
 		return this;
 	},
 	_addAxis: function (axis, length, color) {
+		// This is for debugging. It draws a line for the given axis in the
+		// given color
 		var p1 = new THREE.Vector3(),
 			p2 = new THREE.Vector3();
 		switch (axis) {
@@ -2126,8 +2133,8 @@ B.Model = B.Class.extend({
 			p2.set(length, 0, 0);
 			break;
 		case 'y':
-			p1.set(100000, -length, 2800);
-			p2.set(100000, length, 2800);
+			p1.set(0, -length, 0);
+			p2.set(0, length, 0);
 			break;
 		case 'z':
 			p1.set(0, 0, -length);
@@ -2142,6 +2149,7 @@ B.Model = B.Class.extend({
         this._scene.add(line);
 	},
 	_initContainer: function (id) {
+		// Initialized the rendering container
 		var container = this._container = B.DomUtil.get(id);
 
 		if (!container) {
@@ -2152,9 +2160,10 @@ B.Model = B.Class.extend({
 		container._berries = true;
 	},
 	_initThree: function () {
+		// Initialize all the basic three.js stuff
 		this._scene = this._scene = new THREE.Scene();
 
-		// TODO: Add some logic to do canvas or WebGL (or maybe SVG?)
+		// TODO: Add some logic to do canvas (or maybe SVG?)
 		this._renderer = new THREE.WebGLRenderer();
 		this._renderer.setSize(window.innerWidth, window.innerHeight);
 
@@ -2162,13 +2171,8 @@ B.Model = B.Class.extend({
 		this._renderer.gammaOutput = true;
 		//this._renderer.physicallyBasedShading = true;
 
-
 		this._renderer.shadowMapEnabled = true;
 		this._renderer.shadowMapSoft = true;
-		//this._renderer.shadowCameraNear = 3;
-		//this._renderer.shadowCameraFar = 20000;
-		//this._renderer.shadowCameraFov = 50;
-		//this._renderer.shadowMapCullFace = THREE.CullFaceBack;
 
 		// Empty the rendering container
 		this._container.innerHTML = '';
@@ -2184,9 +2188,6 @@ B.Model = B.Class.extend({
 
 		// Init the controls
 		this._controls = new B.DefaultControl(camera);
-	},
-	_initLoadManager: function () {
-		
 	},
 	_render: function () {
 		//this._controls.update(this._clock.getDelta()); // Update the controls based on a clock
@@ -2230,14 +2231,10 @@ B.Terrain = B.Class.extend({
 	},
 	buildMesh: function (geoParts) {
 		// Rebuild the geometry from it's parts
-
-
-		
 		this._geometry = new THREE.PlaneGeometry(geoParts.width, geoParts.height,
 			geoParts.numVertsX - 1, geoParts.numVertsY - 1);
 
 		B.WebWorkerGeometryHelper.reconstruct(geoParts, this._geometry);
-
 
 		this._geometry.computeFaceNormals();
 		this._geometry.computeVertexNormals();
@@ -2247,8 +2244,6 @@ B.Terrain = B.Class.extend({
 		this._numVertsY = geoParts.numVertsY;
 		this._gridSpaceX = geoParts.gridSpaceX;
 		this._gridSpaceY = geoParts.gridSpaceY;
-
-
 
 		this._createMesh();
 		
@@ -2285,9 +2280,8 @@ B.Terrain = B.Class.extend({
 		}.bind(this), 20);
 	},
 	updateObjPosition: function (object) {
+		// Update and objects position's z coordinate, based on the terrain data
 		object.position.z = this.heightAt(object.position.x, object.position.y);
-		//this.objCount++;
-		//console.log(this.objCount);
 	},
 	heightAtLatLon: function (lat, lon, xym) {
 		// Return the elevation of the terrain at the given lat/lon
@@ -2304,6 +2298,8 @@ B.Terrain = B.Class.extend({
 		this.heightAt(xym.x, xym.y);
 	},
 	heightAt: function (x, y) {
+		// Return the elevation (z coord) of the terrain at the given x/y
+
 		// Get the coords of the tile the point falls into (relative to top left)
 		var ix = Math.floor((x) / this._gridSpaceX);
 		var iy = (this._numVertsY - 2) - Math.floor((y) / this._gridSpaceY);
@@ -2338,12 +2334,10 @@ B.Terrain = B.Class.extend({
 		return lerp(lerp(nw.z, se.z, (1 + px - py) / 2), px > (1 - py) ? ne.z : se.z, Math.abs(1 - px - py));
 	},
 	_copyVertexByValue: function (vertex) {
-		return new THREE.Vector3(
-			vertex.x,
-			vertex.y,
-			vertex.z);
+		return new THREE.Vector3(vertex.x, vertex.y, vertex.z);
 	},
 	_lerp: function (v1, v2, f) {
+		// Linear interpolation
 		return v1 + (v2 - v1) * f;
 	},
 	worldVector: function (lat, lon) {
@@ -2367,9 +2361,6 @@ B.Terrain = B.Class.extend({
 				Math.round(this._dataWidthInMeters / widthOfTexture));
 		this._mesh = new THREE.Mesh(this._geometry, new THREE.MeshPhongMaterial({
 			map: texture
-			// For debugging
-			/*wireframe: true,
-			color: 0x0000ff*/
 		}));
 
 		// Enable shadows for the ground
@@ -2411,11 +2402,9 @@ B.Light = B.Class.extend({
 		options = B.setOptions(this, options);
 
 		var dirLight = this._light = new THREE.DirectionalLight(0xffffff, 1);
-		//dirLight.position = this._position;
-		//dirLight.target.position = new THREE.Vector3(4311, 1640, 7065);
 
 		dirLight.castShadow = true;
-		dirLight.shadowCameraVisible = true;
+		dirLight.shadowCameraVisible = false;
 
 
 		dirLight.shadowMapWidth = 8192;
@@ -2423,36 +2412,25 @@ B.Light = B.Class.extend({
 
 		var d = 10000;
 
+		// This controls the size of the box for the camera
 		dirLight.shadowCameraLeft = -d;
 		dirLight.shadowCameraRight = d;
 		dirLight.shadowCameraTop = d;
 		dirLight.shadowCameraBottom = -d;
-
 		dirLight.shadowCameraFar = 3000;
 		dirLight.shadowCameraNear = -100;
-		//dirLight.shadowBias = 0.01;
-		dirLight.shadowDarkness = 0.5;
 
-		//this._position = position;
+		// This controls the position of the shadows. Tweaking it can remove
+		// an effect known as a peter panning (separation between the shadow
+		// and the object)
+		//dirLight.shadowBias = 0.01; 
+		
+		dirLight.shadowDarkness = 0.5; // How dark are the shadows?
 		
 		return this;
 	},
 	addTo: function (model) {
-
-/*
-		var	hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.6);
-		hemiLight.color.setHSL(0.6, 1, 0.6);
-		hemiLight.groundColor.setHSL(0.095, 1, 0.75);
-		hemiLight.position.set(0, 3000, 0);
-		hemiLight.visible = true;
-		model.addObject(hemiLight);
-*/
-
-		
-
-
 		model.addObject(this._light);
-
 
 		return this;
 
@@ -2465,7 +2443,7 @@ B.light = function (id, options) {
 
 
 /*
- * B.Road is a class for drawing a road
+ * B.Building is a class for creating a building
  */
 
 B.Building = B.Class.extend({
@@ -2486,10 +2464,6 @@ B.Building = B.Class.extend({
 		var wallMatIndx = this._getMaterialIndex(tags['building:material'], this.options.wallMaterial);
 		var roofMatIndx = this._getMaterialIndex(tags['roof:material'], this.options.roofMaterial);
 		var mesh = this._mesh = new THREE.Mesh(this._geometry,
-			/*new THREE.MeshBasicMaterial({
-				color: 'red'
-				//wireframe: true
-			})*/
 			new THREE.MeshFaceMaterial([
 				B.Materials.MATERIALS[wallMatIndx],
 				B.Materials.MATERIALS[roofMatIndx]
@@ -2557,9 +2531,7 @@ B.BuildingHelper = {
 };
 
 
-/*
- * B.Road is a class for drawing a road
- */
+/* B.Road is a class for drawing a road */
 
 B.Road = B.Class.extend({
 
@@ -2642,9 +2614,10 @@ B.FireHydrant = B.Class.extend({
 
 
 /* 
- * B.OSMDataContainer is reads in OSM data in JSON format, and allows 
- * access to various data (eg: roads, buildings, etc)
- */
+B.OSMDataContainer reads in OSM data in JSON format, and allows access to
+various features (eg: roads, buildings, etc). This class also makes calls to
+the web worker to generate objects, and creates Berries objects out of them
+*/
 
 B.OSMDataContainer = B.Class.extend({
 	_nodes: [],
@@ -2663,13 +2636,15 @@ B.OSMDataContainer = B.Class.extend({
 		this._model = model;
 		var origin = model._origin;
 
-		// For each feature that should be rendered
+		// For each feature
 		for (var feature in options.render) {
 			var featureOptions = options.render[feature];
 			var id, nodes, i, nodeId;
 
+			// If the options say to skip it, go to the next feature
 			if (featureOptions === false) { continue; }
 
+			// Switch on the feature name to deterine how to handle it
 			switch (feature) {
 			case 'buildings':
 				model._logger.log('Generating buildings');
@@ -2679,10 +2654,12 @@ B.OSMDataContainer = B.Class.extend({
 
 				model._logger.log('About to generate ' + buildings.length + ' buildings');
 
+				// For each building
 				for (id in buildings) {
 					var building = buildings[id];
 					nodes = [];
 
+					// Get the OSM nodes for it
 					for (i in building.nodes) {
 						nodeId = building.nodes[i];
 						nodes[i] = this.getNode(nodeId);
@@ -2696,6 +2673,7 @@ B.OSMDataContainer = B.Class.extend({
 						tags: building.tags,
 						origin: origin,
 						options: featureOptions
+					// When it's done, send the returned data to a callback function
 					}, B.BuildingHelper.workerCallback.bind(this));
 					
 				}
@@ -2707,6 +2685,7 @@ B.OSMDataContainer = B.Class.extend({
 
 				model._logger.log('About to generate ' + roads.length + ' roads');
 
+				// For each road
 				for (id in roads) {
 					var road = roads[id];
 					nodes = [];
@@ -2724,6 +2703,7 @@ B.OSMDataContainer = B.Class.extend({
 						tags: road.tags,
 						origin: origin,
 						options: featureOptions
+					// When it's done, send the returned data to a callback function
 					}, B.RoadHelper.workerCallback.bind(this));
 					
 				}
@@ -2738,25 +2718,6 @@ B.OSMDataContainer = B.Class.extend({
 				for (id in fhs) {
 					var node = fhs[id];
 					new B.FireHydrant(node, featureOptions).addTo(model);
-
-					
-					/*for (i in fh.nodes) {
-						nodeId = road.nodes[i];
-						nodes[i] = this.getNode(nodeId);
-					}*/
-
-
-					// Make calls to worker to generate objects
-					/*
-					B.Worker.sendMsg({
-						action: 'generateRoad',
-						nodes: nodes,
-						tags: road.tags,
-						origin: origin,
-						options: featureOptions
-					}, B.RoadHelper.workerCallback.bind(this));
-					*/
-					
 				}
 				break;
 
@@ -2765,16 +2726,8 @@ B.OSMDataContainer = B.Class.extend({
 		}
 		//model.addObject();
 	},
-	workerCallback: function (e) {
-		var model = this._model;
-		var terrain = this._model._terrain;
-		// Run the callback on that object
-		terrain.addObjectCallback(e.object, function (object) {
-			terrain.updateObjPosition(object);
-			model.addObject(object);
-		}.bind(this));
-	},
 	addData: function (data) {
+		// Add data to the OSMDataContainer object
 
 		if (!this._data) {
 			// If the data doesn't already exist, simply add it
@@ -2800,6 +2753,8 @@ B.OSMDataContainer = B.Class.extend({
 		}
 	},
 	get: function (feature) {
+		// Get an OSM feature
+
 		var features = [];
 		var wayid, way;
 		var nodeid, node;

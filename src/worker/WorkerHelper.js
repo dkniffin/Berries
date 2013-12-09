@@ -4,12 +4,8 @@ B.Worker.addMsgHandler('loadLibrary', function (e) {
 	B.Logger.log('debug', 'Loading ' + e.data.url);
 	importScripts(e.data.url);
 });
-/*
-B.Worker.addMsgHandler('loadDefaultMats', function () {
-	B.Materials.initDefaults();
-});
-*/
 
+// Send log messages back to the main thread
 B.Logger = {
 	log: function (type, message) {
 		B.Worker.sendMsg({

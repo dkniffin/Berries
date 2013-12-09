@@ -1,6 +1,4 @@
-/*
- * B.Road is a class for drawing a road
- */
+/* B.Road is a class for drawing a road */
 
 B.Road = B.Class.extend({
 

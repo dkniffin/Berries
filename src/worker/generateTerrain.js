@@ -8,10 +8,12 @@ B.Worker.addMsgHandler('generateTerrain', function (e) {
 	*/
 	var options = e.data.options;
 
+	// Download the data
 	var xhr = new XMLHttpRequest();
 	xhr.responseType = 'arraybuffer';
 	xhr.open('GET', e.data.srtmDataSource, true);
 	xhr.onload = function () {
+		// When the data is finished downloading
 		if (xhr.response) {
 			var data = new Uint16Array(xhr.response);
 			B.Logger.log('info', 'Getting SRTM data');
@@ -34,6 +36,9 @@ B.Worker.addMsgHandler('generateTerrain', function (e) {
 			var gridSpaceX = width / (numVertsX - 1);
 			var gridSpaceY = height / (numVertsY - 1);
 
+			// This part does most of the work. What it does is loops over
+			// each vertex in the geometry and assigns the corresponding value
+			// from the data
 			for (var i = 0, l = geometry.vertices.length; i < l; i++) {
 				geometry.vertices[i].z = data[i] / 65535 * 4347;
 			}
@@ -47,10 +52,6 @@ B.Worker.addMsgHandler('generateTerrain', function (e) {
 			geometry.computeVertexNormals();
 				
 			B.Logger.log('debug', 'Returning geometry...');
-			//B.Logger.log('debug', 'Sorry, this is gonna take a while...it needs to be refactored...');
-			// TODO: This part takes a long time to run. At some point, it
-			// should be probably rewritten so that the terrain is a
-			// bufferGeometry
 			B.Worker.sendMsg({
 				action: 'generateTerrain',
 				geometryParts: {
@@ -63,7 +64,6 @@ B.Worker.addMsgHandler('generateTerrain', function (e) {
 					gridSpaceX: gridSpaceX,
 					gridSpaceY: gridSpaceY
 				}
-				// Other return values
 			}, null, [
 				deconstructedGeo.verts.buffer,
 				deconstructedGeo.faces.buffer

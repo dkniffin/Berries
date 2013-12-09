@@ -16,14 +16,10 @@ B.Terrain = B.Class.extend({
 	},
 	buildMesh: function (geoParts) {
 		// Rebuild the geometry from it's parts
-
-
-		
 		this._geometry = new THREE.PlaneGeometry(geoParts.width, geoParts.height,
 			geoParts.numVertsX - 1, geoParts.numVertsY - 1);
 
 		B.WebWorkerGeometryHelper.reconstruct(geoParts, this._geometry);
-
 
 		this._geometry.computeFaceNormals();
 		this._geometry.computeVertexNormals();
@@ -33,8 +29,6 @@ B.Terrain = B.Class.extend({
 		this._numVertsY = geoParts.numVertsY;
 		this._gridSpaceX = geoParts.gridSpaceX;
 		this._gridSpaceY = geoParts.gridSpaceY;
-
-
 
 		this._createMesh();
 		
@@ -71,9 +65,8 @@ B.Terrain = B.Class.extend({
 		}.bind(this), 20);
 	},
 	updateObjPosition: function (object) {
+		// Update and objects position's z coordinate, based on the terrain data
 		object.position.z = this.heightAt(object.position.x, object.position.y);
-		//this.objCount++;
-		//console.log(this.objCount);
 	},
 	heightAtLatLon: function (lat, lon, xym) {
 		// Return the elevation of the terrain at the given lat/lon
@@ -90,6 +83,8 @@ B.Terrain = B.Class.extend({
 		this.heightAt(xym.x, xym.y);
 	},
 	heightAt: function (x, y) {
+		// Return the elevation (z coord) of the terrain at the given x/y
+
 		// Get the coords of the tile the point falls into (relative to top left)
 		var ix = Math.floor((x) / this._gridSpaceX);
 		var iy = (this._numVertsY - 2) - Math.floor((y) / this._gridSpaceY);
@@ -124,12 +119,10 @@ B.Terrain = B.Class.extend({
 		return lerp(lerp(nw.z, se.z, (1 + px - py) / 2), px > (1 - py) ? ne.z : se.z, Math.abs(1 - px - py));
 	},
 	_copyVertexByValue: function (vertex) {
-		return new THREE.Vector3(
-			vertex.x,
-			vertex.y,
-			vertex.z);
+		return new THREE.Vector3(vertex.x, vertex.y, vertex.z);
 	},
 	_lerp: function (v1, v2, f) {
+		// Linear interpolation
 		return v1 + (v2 - v1) * f;
 	},
 	worldVector: function (lat, lon) {
@@ -153,9 +146,6 @@ B.Terrain = B.Class.extend({
 				Math.round(this._dataWidthInMeters / widthOfTexture));
 		this._mesh = new THREE.Mesh(this._geometry, new THREE.MeshPhongMaterial({
 			map: texture
-			// For debugging
-			/*wireframe: true,
-			color: 0x0000ff*/
 		}));
 
 		// Enable shadows for the ground

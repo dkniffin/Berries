@@ -1,13 +1,14 @@
-/* Load all pre-made models */
+/* Premade objects container */
 
 B.Premades = {
-	_definitions: [
+	_definitions: [ // Definitions for each premade object
 		{
 			id: 'fireHydrant',
 			url: B.Util.getDaePath() + '/fire_hydrant_red.dae'
 		}
 	],
 	load: function (logger) {
+		// Load the premade objects (download them and save them to memory)
 		var loadedCounter = 0;
 		var loader = new THREE.ColladaLoader();
 		loader.options.convertUpAxis = true;
@@ -17,6 +18,7 @@ B.Premades = {
 		};
 
 		var onload = function (result) {
+			// Save the object as B.Premades.<id> to be referenced later
 			B.Premades[def.id] = result.scene;
 			loadedCounter++;
 		};
@@ -24,14 +26,9 @@ B.Premades = {
 		// Load all the models
 		for (var i in B.Premades._definitions) {
 			var def = B.Premades._definitions[i];
-			// If the opions say to load the object
-			//if (B.Options.render[def.id + 's']) {
 			logger.log('Loading ' + def.id);
 
 			loader.load(def.url, onload);
-			//} else {
-				//loadedCounter++;
-			//}
 		}
 
 
