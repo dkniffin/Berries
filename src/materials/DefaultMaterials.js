@@ -6,3 +6,15 @@ B.Materials.addMaterial('GLASSBLUE', new THREE.MeshPhongMaterial({color: 0x009DD
 B.Materials.addMaterial('ASPHALTGREY', new THREE.MeshPhongMaterial({color: 0x757575, side: THREE.DoubleSide }));
 B.Materials.addMaterial('WOODBROWN', new THREE.MeshPhongMaterial({color: 0xAE8F60, side: THREE.DoubleSide }));
 B.Materials.addMaterial('ROOFTILERED', new THREE.MeshPhongMaterial({color: 0xC9555C, side: THREE.DoubleSide }));
+
+// Textured Materials
+var texture = THREE.ImageUtils.loadTexture(B.Util.getTexturePath() + '/sandstone_seamless.jpg');
+//var widthOfTexture = 50; // meters
+//var heightOfTexture = 50; // meters
+texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+//texture.repeat.set(10, 10);
+
+B.Materials.addMaterial('SANDSTONE', new THREE.MeshPhongMaterial({
+	map: texture,
+	side: THREE.DoubleSide
+}));

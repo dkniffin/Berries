@@ -828,7 +828,7 @@ B.Worker.addMsgHandler('generateBuilding', function (e) {
 	var options = e.data.options;
 
 	var buildingGeometry =  new THREE.Geometry();
-	var i, j;
+	var i;
 
 
 	var translation = {
@@ -843,6 +843,7 @@ B.Worker.addMsgHandler('generateBuilding', function (e) {
 			origin.distanceTo([nodes[i].lat, origin.lng]) - translation.y
 		);
 	}
+	var crossSection = new THREE.Shape(outlinePoints);
 
 	// Determine if the nodes are defined in a clockwise direction or CCW
 	var clockwise = THREE.Shape.Utils.isClockWise(outlinePoints);
@@ -865,52 +866,33 @@ B.Worker.addMsgHandler('generateBuilding', function (e) {
 	var roofLevel = groundLevel + height;
 
 
-
-	var roofPointsCoplanar = [];
-	for (j in outlinePoints) {
-		j = Number(j);
-		var point = outlinePoints[j];
-		var point2i = (j !== (outlinePoints.length - 1)) ? j + 1 : 0;
-		var point2 = outlinePoints[point2i];
-
-		// Create the geometry for one wall
-		var wallGeometry = new THREE.Geometry();
-		wallGeometry.vertices.push(new THREE.Vector3(point.x, point.y, groundLevel));
-		wallGeometry.vertices.push(new THREE.Vector3(point2.x, point2.y, groundLevel));
-		wallGeometry.vertices.push(new THREE.Vector3(point2.x, point2.y, roofLevel));
-		wallGeometry.vertices.push(new THREE.Vector3(point.x, point.y, roofLevel));
-
-		wallGeometry.faces.push(new THREE.Face3(2, 1, 0, null, null, 0));
-		wallGeometry.faces.push(new THREE.Face3(3, 2, 0, null, null, 0));
-
-		// Append it to the rest of the building geometry
-		THREE.GeometryUtils.merge(buildingGeometry, wallGeometry);
-
-		// create a 2D point for creating the roof
-		roofPointsCoplanar.push(new THREE.Vector2(point.x, point.y));
-	}
-
-
-	// Create the geometry for the roof
-	var roofGeometry = new THREE.Geometry();
-	var roofShape = new THREE.Shape(roofPointsCoplanar);
-
-	var shapePoints = roofShape.extractPoints();
-	var faces = THREE.Shape.Utils.triangulateShape(shapePoints.shape, shapePoints.holes);
-
-	for (i in shapePoints.shape) {
-		var vertex = shapePoints.shape[i];
-		roofGeometry.vertices.push(new THREE.Vector3(vertex.x, vertex.y, roofLevel));
-	}
-	for (i in faces) {
-		roofGeometry.faces.push(new THREE.Face3(faces[i][0], faces[i][1], faces[i][2],
-			null, null, 1));
-	}
-
-	roofGeometry.computeFaceNormals();
-	THREE.GeometryUtils.merge(buildingGeometry, roofGeometry);
+	var extrudespline = new THREE.SplineCurve3([
+		new THREE.Vector3(0, 0, groundLevel),
+		new THREE.Vector3(0, 0, roofLevel)
+    ]);
 	
-	buildingGeometry.computeFaceNormals();
+	var steps = 2;
+
+	var frames = {tangents: [], normals: [], binormals: []};
+	var normal = new THREE.Vector3(1, 0, 0);
+	for (i = 0; i < steps + 1; i++) {
+		var u = i / steps;
+		var tangent = extrudespline.getTangentAt(u).normalize();
+		frames.tangents[i] = tangent;
+		frames.normals[i] = normal;
+		frames.binormals[i] = tangent.clone().cross(normal);
+	}
+
+
+	buildingGeometry = new THREE.ExtrudeGeometry(crossSection, {
+		extrudePath: extrudespline,
+		steps: steps,
+		frames: frames,
+		closed: true,
+		extrudeMaterial: 0,
+		material: 1
+	});
+	buildingGeometry.uvsNeedUpdate = true;
 
 	
 	var deconstructedGeo = B.WebWorkerGeometryHelper.deconstruct(buildingGeometry);
