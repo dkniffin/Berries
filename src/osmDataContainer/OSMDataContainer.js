@@ -24,7 +24,7 @@ B.OSMDataContainer = B.Class.extend({
 		// For each feature
 		for (var feature in options.render) {
 			var featureOptions = options.render[feature];
-			var id, nodes, i, nodeId;
+			var id, nodes, i, nodeId, node;
 
 			// If the options say to skip it, go to the next feature
 			if (featureOptions === false) { continue; }
@@ -32,12 +32,10 @@ B.OSMDataContainer = B.Class.extend({
 			// Switch on the feature name to deterine how to handle it
 			switch (feature) {
 			case 'buildings':
-				model._logger.log('Generating buildings');
-
 				// Get the OSM data for the feature
 				var buildings = this.get('buildings');
 
-				model._logger.log('About to generate ' + buildings.length + ' buildings');
+				model._logger.log('Generating ' + buildings.length + ' buildings');
 
 				// For each building
 				for (id in buildings) {
@@ -64,11 +62,9 @@ B.OSMDataContainer = B.Class.extend({
 				}
 				break;
 			case 'roads':
-				model._logger.log('Generating roads');
-
 				var roads = this.get('roads');
 
-				model._logger.log('About to generate ' + roads.length + ' roads');
+				model._logger.log('Generating ' + roads.length + ' roads');
 
 				// For each road
 				for (id in roads) {
@@ -94,18 +90,27 @@ B.OSMDataContainer = B.Class.extend({
 				}
 				break;
 			case 'fireHydrants':
-				model._logger.log('Generating fire hydrants');
-
 				var fhs = this.get('fire_hydrants');
 
-				model._logger.log('About to generate ' + fhs.length + ' fire hydrants');
+				model._logger.log('Adding ' + fhs.length + ' fire hydrants');
 
 				for (id in fhs) {
-					var node = fhs[id];
+					node = fhs[id];
 					new B.FireHydrant(node, featureOptions).addTo(model);
 				}
 				break;
+			case 'trees':
+				var trees = this.get('trees');
+				//var woods = this.get('woods');
 
+
+				model._logger.log('Adding ' + trees.length + ' trees');
+
+				for (id in trees) {
+					node = trees[id];
+					new B.Tree(node, featureOptions).addTo(model);
+				}
+				break;
 			}
 
 		}
@@ -145,6 +150,8 @@ B.OSMDataContainer = B.Class.extend({
 		var nodeid, node;
 		// var relid, rel;
 
+		var highway, building, emergency, natural;
+
 		switch (feature) {
 		case 'roads':
 			var roadValues = ['motorway', 'motorway_link', 'trunk', 'trunk_link',
@@ -156,7 +163,8 @@ B.OSMDataContainer = B.Class.extend({
 					continue;
 				}
 
-				if (roadValues.indexOf(way.tags.highway) > -1) { // If roadValues contains tagVal
+				highway = way.tags.highway;
+				if (highway && roadValues.indexOf(highway) > -1) { // If roadValues contains tagVal
 					features.push(way);
 				}
 			}
@@ -169,7 +177,7 @@ B.OSMDataContainer = B.Class.extend({
 					continue;
 				}
 
-				var building = way.tags.building;
+				building = way.tags.building;
 				if (building && building !== 'no') {
 					features.push(way);
 				}
@@ -182,9 +190,35 @@ B.OSMDataContainer = B.Class.extend({
 					continue;
 				}
 
-				var emergency = node.tags.emergency;
+				emergency = node.tags.emergency;
 				if (emergency && emergency === 'fire_hydrant') {
 					features.push(node);
+				}
+			}
+			break;
+		case 'trees':
+			for (nodeid in this._nodes) {
+				node = this._nodes[nodeid];
+				if (!node.tags) {
+					continue;
+				}
+
+				natural = node.tags.natural;
+				if (natural && natural === 'tree') {
+					features.push(node);
+				}
+			}
+			break;
+		case 'woods':
+			for (wayid in this._ways) {
+				way = this._ways[wayid];
+				if (!way.tags) {
+					continue;
+				}
+
+				natural = way.tags.natural;
+				if (natural && natural === 'wood') {
+					features.push(way);
 				}
 			}
 			break;

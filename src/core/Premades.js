@@ -3,6 +3,10 @@
 B.Premades = {
 	_definitions: [ // Definitions for each premade object
 		{
+			id: 'deciduousTree',
+			url: B.Util.getDaePath() + '/deciduous.dae'
+		},
+		{
 			id: 'fireHydrant',
 			url: B.Util.getDaePath() + '/fire_hydrant_red.dae'
 		}
@@ -19,7 +23,8 @@ B.Premades = {
 
 		var onload = function (result) {
 			// Save the object as B.Premades.<id> to be referenced later
-			B.Premades[def.id] = result.scene;
+			B.Premades[this.id] = result.scene;
+			console.log(result);
 			loadedCounter++;
 		};
 		logger.log('Loading pre-made models');
@@ -28,7 +33,7 @@ B.Premades = {
 			var def = B.Premades._definitions[i];
 			logger.log('Loading ' + def.id);
 
-			loader.load(def.url, onload);
+			loader.load(def.url, onload.bind(def));
 		}
 
 

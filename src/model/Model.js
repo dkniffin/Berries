@@ -31,6 +31,7 @@ B.Model = B.Class.extend({
 		// Rendering options
 		render: {
 			fireHydrants: true,
+			trees: true,
 			roads: {
 				roadThickness: 0.25,
 				lanes: 2,
